@@ -1,9 +1,10 @@
 #include "WeightUpdater.h"
 #include "TROOT.h"
 
-namespace sbnnusyst{
+namespace cafnusyst{
 
 WeightUpdater::WeightUpdater(
+  std::string basedirname,
   std::string caftreename,
   std::string srname,
   std::string globaltreename,
@@ -11,6 +12,7 @@ WeightUpdater::WeightUpdater(
   std::string genietreename,
   std::string genierecname){
 
+  fBaseDirName = basedirname=="" ? "" : basedirname+"/";
   fCAFTreeName = caftreename;
   fSRName = srname;
   fGlobalTreeName = globaltreename;
@@ -58,12 +60,12 @@ void WeightUpdater::ProcessFile(std::string inputfile){
   TFile *f_input = TFile::Open(inputfile.c_str());
 
   // Check POT and Livetime first;
-  TH1D *hInputPOT = (TH1D *)f_input->Get(fPOTHistName.c_str());
+  TH1D *hInputPOT = (TH1D *)f_input->Get( (fBaseDirName+fPOTHistName).c_str() );
   if( !AddPOTHist(hInputPOT) ){
     printf("[WeightUpdater::ProcessFile] Input file does not have POT histogram, skipping:\n");
     printf("[WeightUpdater::ProcessFile] - %s\n", inputfile.c_str());
   }
-  TH1D *hInputLivetime = (TH1D *)f_input->Get(fLivetimeHistName.c_str());
+  TH1D *hInputLivetime = (TH1D *)f_input->Get( (fBaseDirName+fLivetimeHistName).c_str() );
   if( !AddLivetimeHist(hInputLivetime) ){
     printf("[WeightUpdater::ProcessFile] Input file does not have Livetime histogram, skipping:\n");
     printf("[WeightUpdater::ProcessFile] - %s\n", inputfile.c_str());
@@ -71,7 +73,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
   // CAF tree
 
-  TTree *fInputCAFTree = (TTree *)f_input->Get(fCAFTreeName.c_str());
+  TTree *fInputCAFTree = (TTree *)f_input->Get( (fBaseDirName+fCAFTreeName).c_str());
   size_t ThisNCAFEvents = fInputCAFTree->GetEntries();
 
   if(DoDebug){
@@ -85,6 +87,8 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
   if(caftype==caf::kNested){
     fInputCAFTree->SetBranchAddress(fSRName.c_str(), &fSR);
+
+    assert(fInputCAFTree);
 
     if(DoDebug){
       printf("[WeightUpdater::ProcessFile] * Input is nested caf\n");
@@ -111,7 +115,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
     caf::SRGlobal* srglobal = nullptr;
 
-    TTree *t_input_global = (TTree *)f_input->Get(fGlobalTreeName.c_str());
+    TTree *t_input_global = (TTree *)f_input->Get( (fBaseDirName+fGlobalTreeName).c_str() );
     if(t_input_global){
       t_input_global->SetBranchAddress(fSRGlobalName.c_str(), &srglobal);
       t_input_global->GetEntry(0);
@@ -122,13 +126,13 @@ void WeightUpdater::ProcessFile(std::string inputfile){
   }
 
   // - GENIE tree
-  TTree *fInputGENIETree = (TTree *)f_input->Get(fGENIETreeName.c_str());
+  TTree *fInputGENIETree = (TTree *)f_input->Get( (fBaseDirName+fGENIETreeName).c_str() );
   genie::NtpMCEventRecord *fInputGENIENtp = nullptr;
   fInputGENIETree->SetBranchAddress(fGENIERecName.c_str(), &fInputGENIENtp);
   size_t ThisNGENIEEvents = fInputGENIETree->GetEntries();
 
   // - SRProxy to access record
-  caf::SRSpillProxy* srproxy = new caf::SRSpillProxy(fInputCAFTree, fSRName.c_str());
+  caf::StandardRecordProxy* srproxy = new caf::StandardRecordProxy(fInputCAFTree, fSRName.c_str());
 
   // Loop over CAFTree
   for (size_t cafev_it = 0; cafev_it < ThisNCAFEvents; ++cafev_it) {
@@ -164,7 +168,10 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       }
 
       auto& nu = srproxy->mc.nu[i_nu];
+
+#ifdef USE_SBNCAF
       size_t genieIdx = nu.genie_evtrec_idx;
+
       // 1) Direct access
       //fInputGENIETree->GetEntry(genieIdx);
       // 2) Use GetEntryWithIndex
@@ -173,6 +180,12 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       fInputGENIETree->GetEntry(GENIEEntryFromIndex);
 
       printf("[WeightUpdater::ProcessFile]     - (Truncated hash, GENIE Tree position) = (%u, %u) -> GetEntryNumberWithIndex = %ld\n", this_tunc_hash, genieIdx, GENIEEntryFromIndex);
+#endif
+
+#ifdef USE_DUNECAF
+      size_t genieIdx = nu.genieIdx;
+      fInputGENIETree->GetEntry(genieIdx);
+#endif
 
       // Get genie event record
       genie::EventRecord const &GenieGHep = *fInputGENIENtp->event;
@@ -205,9 +218,15 @@ void WeightUpdater::ProcessFile(std::string inputfile){
         printf("[WeightUpdater::ProcessFile]     - Now updating weights\n");
       }
 
+
       // Upated fSR (caf::StandardRecord*),
       // convert this into FlatRecord using flat::Flat::Fill(const T& x)
+#ifdef USE_SBNCAF
       fSR->mc.nu[i_nu].genie_evtrec_idx = GlobalGENIEEventCounter;
+#endif
+#ifdef USE_DUNECAF
+      fSR->mc.nu[i_nu].genieIdx = GlobalGENIEEventCounter;
+#endif
 
       for(const auto& v: resp){
         const systtools::paramId_t& pid = v.pid;
@@ -253,6 +272,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       printf("[WeightUpdater::ProcessFile] => MC Loop DONE\n");
     }
 
+#ifdef USE_SBNCAF
     //===========================
     // UPDATE SLC
     //===========================
@@ -278,6 +298,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       }
 
     }
+#endif
 
     fOutputFlatSR->Clear();
     fOutputFlatSR->Fill(*fSR);
@@ -344,6 +365,8 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
   if(input_srglobal){
     // Copying from input SRGlobal
     printf("[WeightUpdater::CreateGlobalTree] @@ Copying input SRGlobal\n");
+
+#ifdef USE_SBNCAF
     printf("[WeightUpdater::CreateGlobalTree] - Number of Parameter sets = %d\n", input_srglobal->wgts.size());
     for(unsigned int i = 0; i < input_srglobal->wgts.size(); ++i){
       const caf::SRWeightPSet& pset = input_srglobal->wgts[i];
@@ -353,6 +376,15 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
       }
 
       srglobal.wgts.push_back( pset );
+#endif
+#ifdef USE_DUNECAF
+    printf("[WeightUpdater::CreateGlobalTree] - Number of Parameter sets = %d\n", input_srglobal->wgts.params.size());
+    for(unsigned int i = 0; i < input_srglobal->wgts.params.size(); ++i){
+      const caf::SRSystParamHeader& pset = input_srglobal->wgts.params[i];
+      std::cout << "  " << i << ": " << pset.name << ", id = " << pset.id << ", nshifts = " << pset.nshifts << std::endl;
+
+      srglobal.wgts.params.push_back( pset );
+#endif
 
     }
   }
@@ -385,7 +417,13 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
       continue;
     }
 
+#ifdef USE_SBNCAF
     srglobal.wgts.emplace_back();
+#endif
+#ifdef USE_DUNECAF
+    srglobal.wgts.params.emplace_back();
+#endif
+
     NExpectedWeights++;
 
     // Find the IGENIESystProvider_tool(ISystProviderTool) for this pid
@@ -400,6 +438,7 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
       abort();
     }
 
+#ifdef USE_SBNCAF
     // Name
     srglobal.wgts.back().name = fRH->GetSystProvider()[matched_idx_sp]->GetFullyQualifiedName()+"_"+sph.prettyName;
     srglobal.wgts.back().nuniv = sph.isCorrection ? 1 : sph.paramVariations.size();
@@ -408,6 +447,14 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
 
     // TODO
     srglobal.wgts.back().type = caf::kMultiSim;
+#endif
+#ifdef USE_DUNECAF
+    // Name
+    srglobal.wgts.params.back().name = fRH->GetSystProvider()[matched_idx_sp]->GetFullyQualifiedName()+"_"+sph.prettyName;
+    srglobal.wgts.params.back().nshifts = sph.isCorrection ? 1 : sph.paramVariations.size();
+
+    printf("[WeightUpdater::CreateGlobalTree] Adding %s to globalTree\n", srglobal.wgts.params.back().name.c_str());
+#endif
 
     // Weight map entry (e.g., dep dials)
     auto it = map_resp_to_respless.find( sph.systParamId );
@@ -419,26 +466,33 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
         std::vector<double> paramVars_dep = sph_dep.isCorrection ? std::vector<double>(1, sph_dep.centralParamValue) : sph_dep.paramVariations;
         std::vector<float> widths_dep { paramVars_dep.begin(), paramVars_dep.end() };
 
+#ifdef USE_SBNCAF
         srglobal.wgts.back().map.emplace_back();
 
         srglobal.wgts.back().map.back().param.name = sph_dep.prettyName;
         srglobal.wgts.back().map.back().vals = widths_dep;
+#endif
 
       }
     }
     else{
       // single dial
 
+#ifdef USE_SBNCAF
       srglobal.wgts.back().map.emplace_back();
 
       srglobal.wgts.back().map.back().param.name = sph.prettyName;
       std::vector<double> paramVars = sph.isCorrection ? std::vector<double>(1, sph.centralParamValue) : sph.paramVariations;
       std::vector<float> widths { paramVars.begin(), paramVars.end() };
       srglobal.wgts.back().map.back().vals = widths;
+#endif
+#ifdef USE_DUNECAF
+      srglobal.wgts.params.back().id = int(pid);
+#endif
 
     }
 
-  }
+  } // END Loop pid
 
   fOutputGlobalTree->Fill();
 
@@ -495,9 +549,15 @@ void WeightUpdater::Save(){
 
   fOutputFile->cd();
 
-  fOutputGlobalTree->SetDirectory(fOutputFile);
-  fOutputCAFTree->SetDirectory(fOutputFile);
-  fOutputGENIETree->SetDirectory(fOutputFile);
+  if(fBaseDirName!=""){
+    fOutputFile->mkdir( fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
+  }
+  TDirectory *OutTDir = fBaseDirName=="" ? fOutputFile : (TDirectory *)fOutputFile->Get(fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
+
+  fOutputGlobalTree->SetDirectory(OutTDir);
+  fOutputCAFTree->SetDirectory(OutTDir);
+  fOutputGENIETree->SetDirectory(OutTDir);
+
   fOutputFile->Write();
 
   fOutputFile->Close();
@@ -506,4 +566,4 @@ void WeightUpdater::Save(){
 
 }
 
-} // END namespace sbnnusyst
+} // END namespace cafnusyst

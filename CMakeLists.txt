@@ -5,7 +5,7 @@ find_program(CMAKE_CXX_COMPILER NAMES $ENV{CXX} g++ PATHS ENV PATH NO_DEFAULT_PA
 
 set(CMAKE_CXX_STANDARD 17)
 
-project(sbnnusyst VERSION 1.00.00 LANGUAGES CXX)
+project(cafnusyst VERSION 1.00.00 LANGUAGES CXX)
 
 #Changes default install path to be a subdirectory of the build dir.
 #Can set build dir at configure time with -DCMAKE_INSTALL_PREFIX=/install/path
@@ -20,8 +20,44 @@ if(CMAKE_BUILD_TYPE STREQUAL "")
   set(CMAKE_BUILD_TYPE DebWithRelInfo)
 endif()
 
-find_package(nusystematics 2.00.01 REQUIRED)
-find_package(sbnanaobj 09.20.06.03 REQUIRED)
+find_package(nusystematics 2.00.03 REQUIRED)
+
+# Define an option to specify the target flag
+set(CAF_TYPE "" CACHE STRING "Specify the target flag: 'sbn' or 'dune'")
+
+# Ensure the user provides a valid CAF_TYPE
+if(NOT (CAF_TYPE STREQUAL "sbn" OR CAF_TYPE STREQUAL "dune"))
+    message(FATAL_ERROR "CAF_TYPE must be either 'sbn' or 'dune'")
+endif()
+
+# Conditionally find the required package based on the CAF_TYPE
+if(CAF_TYPE STREQUAL "sbn")
+  find_package(sbnanaobj 09.20.06.03 REQUIRED)
+
+  set(ANAOBJ_LIBS
+    sbnanaobj::StandardRecord
+    sbnanaobj::StandardRecordProxy
+    sbnanaobj::StandardRecordFlat
+  )
+
+  add_compile_definitions(USE_SBNCAF)
+
+elseif(CAF_TYPE STREQUAL "dune")
+  find_package(duneanaobj 03.05.00 REQUIRED)
+
+  set(ANAOBJ_LIBS
+    duneanaobj::StandardRecordProxy
+    duneanaobj::StandardRecordFlat
+    duneanaobj::StandardRecord
+    duneanaobj::StandardRecord_dict
+  )
+
+  add_compile_definitions(USE_DUNECAF)
+
+endif()
+
+
+
 find_package(GENIE3 REQUIRED)
 if(NOT TARGET GENIE3::All)
   message(FATAL_ERROR "Expected find_package(GENIE3 REQUIRED) call to set up target GENIE3::All.")
@@ -34,24 +70,24 @@ if(NOT fhiclcpp_FOUND)
 endif()
 
 ###### Compiler set up
-add_library(sbnnusyst_dependencies INTERFACE)
-target_link_libraries(sbnnusyst_dependencies INTERFACE fhiclcpp::fhiclcpp)
-target_include_directories(sbnnusyst_dependencies INTERFACE 
+add_library(cafnusyst_dependencies INTERFACE)
+target_link_libraries(cafnusyst_dependencies INTERFACE fhiclcpp::fhiclcpp)
+target_include_directories(cafnusyst_dependencies INTERFACE 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:include> )
-set_target_properties(sbnnusyst_dependencies PROPERTIES EXPORT_NAME commondeps)
-add_library(sbnnusyst::commondeps ALIAS sbnnusyst_dependencies)
+set_target_properties(cafnusyst_dependencies PROPERTIES EXPORT_NAME commondeps)
+add_library(cafnusyst::commondeps ALIAS cafnusyst_dependencies)
 
-install(TARGETS sbnnusyst_dependencies EXPORT sbnnusyst-targets)
+install(TARGETS cafnusyst_dependencies EXPORT cafnusyst-targets)
 
-add_subdirectory(src/sbnnusyst)
+add_subdirectory(src/cafnusyst)
 
 add_subdirectory(fcls)
 
-install(EXPORT sbnnusyst-targets
-        NAMESPACE sbnnusyst::
-        DESTINATION lib/cmake/sbnnusyst)
+install(EXPORT cafnusyst-targets
+        NAMESPACE cafnusyst::
+        DESTINATION lib/cmake/cafnusyst)
 
-configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/Templates/setup.sbnnusyst.sh.in 
-  ${PROJECT_BINARY_DIR}/setup.sbnnusyst.sh @ONLY)
-install(PROGRAMS ${PROJECT_BINARY_DIR}/setup.sbnnusyst.sh DESTINATION bin)
+configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/Templates/setup.cafnusyst.sh.in 
+  ${PROJECT_BINARY_DIR}/setup.cafnusyst.sh @ONLY)
+install(PROGRAMS ${PROJECT_BINARY_DIR}/setup.cafnusyst.sh DESTINATION bin)

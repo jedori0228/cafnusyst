@@ -18,12 +18,23 @@
 #include "systematicstools/utility/md5.hh"
 #include "systematicstools/utility/printers.hh"
 #include "systematicstools/utility/string_parsers.hh"
-// sbnanaobj
+
+// anaobj
+#ifdef USE_SBNCAF
 #include "sbnanaobj/StandardRecord/Proxy/FwdDeclare.h"
 #include "sbnanaobj/StandardRecord/Proxy/SRProxy.h"
 #include "sbnanaobj/StandardRecord/StandardRecord.h"
 #include "sbnanaobj/StandardRecord/SRGlobal.h"
 #include "sbnanaobj/StandardRecord/Flat/FlatRecord.h"
+#endif
+#ifdef USE_DUNECAF
+#include "duneanaobj/StandardRecord/Proxy/FwdDeclare.h"
+#include "duneanaobj/StandardRecord/Proxy/SRProxy.h"
+#include "duneanaobj/StandardRecord/StandardRecord.h"
+#include "duneanaobj/StandardRecord/SRGlobal.h"
+#include "duneanaobj/StandardRecord/Flat/FlatRecord.h"
+#endif
+
 
 namespace cliopts {
   std::string input_filename = "";

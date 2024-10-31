@@ -11,23 +11,36 @@
 #include "Framework/GHEP/GHepUtils.h"
 #include "Framework/Messenger/Messenger.h"
 #include "Framework/Ntuple/NtpMCEventRecord.h"
-// sbnanaobj
+
+// anaobj
+#ifdef USE_SBNCAF
+#include "sbnanaobj/StandardRecord/Proxy/FwdDeclare.h"
 #include "sbnanaobj/StandardRecord/Proxy/SRProxy.h"
 #include "sbnanaobj/StandardRecord/StandardRecord.h"
 #include "sbnanaobj/StandardRecord/SRGlobal.h"
 #include "sbnanaobj/StandardRecord/Flat/FlatRecord.h"
+#endif
+#ifdef USE_DUNECAF
+#include "duneanaobj/StandardRecord/Proxy/FwdDeclare.h"
+#include "duneanaobj/StandardRecord/Proxy/SRProxy.h"
+#include "duneanaobj/StandardRecord/StandardRecord.h"
+#include "duneanaobj/StandardRecord/SRGlobal.h"
+#include "duneanaobj/StandardRecord/Flat/FlatRecord.h"
+#endif
+
 // nusystematics
 #include "nusystematics/utility/response_helper.hh"
-// sbnnusyst
-#include "sbnnusyst/utility/Utilities.h"
+// cafnusyst
+#include "cafnusyst/utility/Utilities.h"
 
-namespace sbnnusyst{
+namespace cafnusyst{
 
 class WeightUpdater{
 
 public:
 
   WeightUpdater(
+    std::string basedirname,
     std::string caftreename,
     std::string srname,
     std::string globaltreename,
@@ -40,6 +53,7 @@ public:
   nusyst::response_helper* fRH;
   void SetResponseHelper(std::string fclname);
 
+  std::string fBaseDirName;
   std::string fCAFTreeName;
   std::string fSRName;
   std::string fGlobalTreeName;
@@ -80,4 +94,4 @@ public:
 
 };
 
-} // END namespace sbnnusyst
+} // END namespace cafnusyst

@@ -31,13 +31,25 @@
 #include "TObjString.h"
 #include "TChain.h"
 #include "TFile.h"
-// sbnanaobj
+
+// anaobj
+#ifdef USE_SBNCAF
+#include "sbnanaobj/StandardRecord/Proxy/FwdDeclare.h"
 #include "sbnanaobj/StandardRecord/Proxy/SRProxy.h"
 #include "sbnanaobj/StandardRecord/StandardRecord.h"
 #include "sbnanaobj/StandardRecord/SRGlobal.h"
 #include "sbnanaobj/StandardRecord/Flat/FlatRecord.h"
-// sbnnusyst
-#include "sbnnusyst/interface/WeightUpdater.h"
+#endif
+#ifdef USE_DUNECAF
+#include "duneanaobj/StandardRecord/Proxy/FwdDeclare.h"
+#include "duneanaobj/StandardRecord/Proxy/SRProxy.h"
+#include "duneanaobj/StandardRecord/StandardRecord.h"
+#include "duneanaobj/StandardRecord/SRGlobal.h"
+#include "duneanaobj/StandardRecord/Flat/FlatRecord.h"
+#endif
+
+// cafnusyst
+#include "cafnusyst/interface/WeightUpdater.h"
 
 template class caf::Proxy<caf::StandardRecord>;
 
@@ -122,10 +134,11 @@ int main(int argc, char const *argv[]) {
   }
 
   std::string filePath;
-  sbnnusyst::WeightUpdater wu(
-    "recTree", "rec",
+  cafnusyst::WeightUpdater wu(
+    "cafmaker",
+    "cafTree", "rec",
     "globalTree", "global",
-    "GenieEvtRecTree", "GenieEvtRec"
+    "genieEvt", "genie_record"
   ); 
   wu.SetOutputFileName(cliopts::output_filename);
   wu.SetNMaxCAFEventsToProcess(cliopts::NMax);

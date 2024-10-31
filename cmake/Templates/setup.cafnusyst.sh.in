@@ -52,8 +52,8 @@ function add_to_LD_LIBRARY_PATH () {
 
 fi
 
-export sbnnusyst_ROOT=@CMAKE_INSTALL_PREFIX@
-export sbnnusyst_VERSION=@PROJECT_VERSION@
+export cafnusyst_ROOT=@CMAKE_INSTALL_PREFIX@
+export cafnusyst_VERSION=@PROJECT_VERSION@
 
 add_to_PATH "@CMAKE_INSTALL_PREFIX@/bin"
 

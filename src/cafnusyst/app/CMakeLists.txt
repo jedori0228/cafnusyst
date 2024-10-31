@@ -1,6 +1,5 @@
 LIST(APPEND TARGETS_TO_BUILD 
 UpdateReweight
-ReadCAF
 )
 
 foreach(targ ${TARGETS_TO_BUILD})
@@ -10,12 +9,10 @@ foreach(targ ${TARGETS_TO_BUILD})
     ${ROOT_LIBRARIES}
     ROOT::Geom
     ROOT::MathMore
-    sbnanaobj::StandardRecord
-    sbnanaobj::StandardRecordProxy
-    sbnanaobj::StandardRecordFlat
-    sbnnusyst::commondeps
-    sbnnusyst::interface
-    sbnnusyst::utility
+    ${ANAOBJ_LIBS}
+    cafnusyst::commondeps
+    cafnusyst::interface
+    cafnusyst::utility
   )
   target_include_directories(${targ}
     PRIVATE

@@ -2,10 +2,10 @@
 
 #include <iostream>
 
-namespace sbnnusyst{
+namespace cafnusyst{
 
 int UniqueName();
 
-} // END namespace sbnnusyst
+} // END namespace cafnusyst
 
 
