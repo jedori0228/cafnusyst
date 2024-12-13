@@ -83,10 +83,18 @@ int main(int argc, char const *argv[]) {
     return 1;
   }
 
+#ifdef USE_SBNCAF
   std::string fCAFTreeName = "recTree";
   std::string fSRName = "rec";
   std::string fGlobalTreeName = "globalTree";
   std::string fSRGlobalName = "global";
+#endif
+#ifdef USE_DUNECAF
+  std::string fCAFTreeName = "cafmaker/cafTree";
+  std::string fSRName = "rec";
+  std::string fGlobalTreeName = "cafmaker/globalTree";
+  std::string fSRGlobalName = "global";
+#endif
 
   // Input file
   TFile *f_input = new TFile(cliopts::input_filename.c_str());
@@ -97,21 +105,26 @@ int main(int argc, char const *argv[]) {
   t_input_global->SetBranchAddress(fSRGlobalName.c_str(), &srglobal);
   t_input_global->GetEntry(0);
 
-  std::cout << srglobal->wgts.size() << " parameter sets:" << std::endl;
+#ifdef USE_SBNCAF
+  printf("[ReadCAF] - Number of Parameter sets = %d\n", srglobal->wgts.size());
   for(unsigned int i = 0; i < srglobal->wgts.size(); ++i){
     const caf::SRWeightPSet& pset = srglobal->wgts[i];
     std::cout << "  " << i << ": " << pset.name << ", type " << pset.type << ", " << pset.nuniv << " universes, adjusted parameters:" << std::endl;
-
     for(const caf::SRWeightMapEntry& entry: pset.map){
       std::cout << "    " << entry.param.name << std::endl;
-      for(const auto& val: entry.vals){
-        std::cout << val << " ";
-      }
-      std::cout << std::endl;
     }
   }
+#endif
+#ifdef USE_DUNECAF
+  printf("[ReadCAF] - Number of Parameter sets = %d\n", srglobal->wgts.params.size());
+  for(unsigned int i = 0; i < srglobal->wgts.params.size(); ++i){
+    const caf::SRSystParamHeader& pset = srglobal->wgts.params[i];
+    std::cout << "  " << i << ": " << pset.name << ", id = " << pset.id << ", nshifts = " << pset.nshifts << std::endl;
+  }
+#endif
 
   // CAF tree
+  std::cout << "[ReadCAF] fCAFTreeName = " << fCAFTreeName << std::endl;
   TTree *fInputCAFTree = (TTree *)f_input->Get(fCAFTreeName.c_str());
   size_t ThisNCAFEvents = fInputCAFTree->GetEntries();
   size_t NToRead = std::min(ThisNCAFEvents, cliopts::NMax);
@@ -121,58 +134,47 @@ int main(int argc, char const *argv[]) {
   const caf::CAFType caftype = caf::GetCAFType(fInputCAFTree);
 
   // - SRProxy to access record
-  caf::SRSpillProxy* srproxy = new caf::SRSpillProxy(fInputCAFTree, fSRName.c_str());
+  caf::StandardRecordProxy* srproxy = new caf::StandardRecordProxy(fInputCAFTree, fSRName.c_str());
 
   // Loop over CAFTree
+  unsigned int NProcessedCAFEvents = 0;
   for (size_t cafev_it = 0; cafev_it < NToRead; ++cafev_it) {
+
+    printf("[ReadCAF] * CAF entry = %ld\n", cafev_it);
+    if( cliopts::NMax>0 ){
+      // if set, check if we have reached the maximum
+      if(NProcessedCAFEvents>=NToRead){
+        printf("[ReadCAF] * Reached the maximum events to process, N_MAX = %ld\n", cliopts::NMax);
+        break;
+      }
+    }
 
     fInputCAFTree->GetEntry(cafev_it);
 
-    printf("- %ld-th event\n", cafev_it);
-    std::cout << "  * sourceName = " << srproxy->hdr.sourceName.GetValue() << std::endl;
-    std::cout << "  * sourceNameHash = " << srproxy->hdr.sourceNameHash << std::endl;
-    //printf("  * sourceName = %s\n",sourceName.c_str());
-    //printf("  * sourceNameHash = %zd\n",sourceNameHash);
-    printf("  * Neutrino loop *\n");
-    int i_nu = 0;
-    for(auto& nu: srproxy->mc.nu){
-      printf("  - %d-th neutrino\n", i_nu);
-      int i_w=0;
-      for(auto& wgt: nu.wgt){
-        printf("    - %d-th PSet (%s)\n", i_w, srglobal->wgts[i_w].name.c_str());
-        for(int i_univ=0; i_univ<wgt.univ.size(); i_univ++){
-          std::cout << "      - univ: " << i_univ << ", weight = " << wgt.univ[i_univ] << std::endl;
+    const size_t N_MC = srproxy->mc.nu.size();
+    printf("[ReadCAF]   * N_MC = %ld\n", N_MC);
+
+    // now loop over true neutrinos
+    for(size_t i_nu=0; i_nu<N_MC; i_nu++){
+
+      auto& nu = srproxy->mc.nu[i_nu];
+
+#ifdef USE_DUNECAF
+      printf("[ReadCAF]     * i_nu = %ld\n", i_nu);
+      printf("[ReadCAF]       * nu.E() = %f\n", nu.E.GetValue());
+      printf("[ReadCAF]       * nu.wgt.size() = %ld\n", nu.wgt.size());
+      for(size_t i_wgt=0; i_wgt<nu.wgt.size(); i_wgt++){
+        const auto& srmult = nu.wgt[i_wgt];
+        printf("[ReadCAF]         * i_wgt = %ld, srmult.univ.size() = %ld\n", i_wgt, srmult.univ.size());
+        for(size_t i_univ=0; i_univ<srmult.univ.size(); i_univ++){
+          printf("[ReadCAF]           * i_univ = %ld, weight = %f\n", i_univ, srmult.univ[i_univ].GetValue());
         }
-        i_w++;
       }
-      i_nu++;
+#endif
+
     }
 
-/*
-    printf("  * Slice loop *\n");
-    int i_slc=0;
-    for(auto& slc: srproxy->slc){
-      printf("  - %d-th slice\n", i_slc);
-      if(slc.truth.index>=0){
-        printf("    - Matched to neutrino\n");
-
-        int i_w=0;
-        for(auto& wgt: slc.truth.wgt){
-          printf("      - %d-th PSet (%s)\n", i_w, srglobal->wgts[i_w].name.c_str());
-          for(int i_univ=0; i_univ<wgt.univ.size(); i_univ++){
-            std::cout << "        - univ: " << i_univ << ", weight = " << wgt.univ[i_univ] << std::endl;
-          }
-          i_w++;
-        }
-
-      }
-      else{
-        //printf("    - Not matched to neutrino\n");
-      }
-      i_slc++;
-    }
-*/
-
+    NProcessedCAFEvents++;
 
   }
 
