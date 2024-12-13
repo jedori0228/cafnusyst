@@ -135,10 +135,18 @@ int main(int argc, char const *argv[]) {
 
   std::string filePath;
   cafnusyst::WeightUpdater wu(
+#ifdef USE_SBNCAF
+    "",
+    "recTree", "rec",
+    "globalTree", "global",
+    "GenieEvtRecTree", "GenieEvtRec"
+#endif
+#ifdef USE_DUNECAF
     "cafmaker",
     "cafTree", "rec",
     "globalTree", "global",
     "genieEvt", "genie_record"
+#endif
   ); 
   wu.SetOutputFileName(cliopts::output_filename);
   wu.SetNMaxCAFEventsToProcess(cliopts::NMax);
