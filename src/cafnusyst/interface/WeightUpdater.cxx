@@ -213,8 +213,13 @@ void WeightUpdater::ProcessFile(std::string inputfile){
         abort();
       }
 
+#ifdef USE_DUNECAF
+      // I don't know why I need this for dune CAFS..
+      fSR->mc.nu[i_nu].wgt.clear();
+#endif
       if(DoDebug){
         printf("[WeightUpdater::ProcessFile]     - => done.\n");
+        printf("[WeightUpdater::ProcessFile]     - Current number size of wgt = %ld\n", fSR->mc.nu[i_nu].wgt.size());
         printf("[WeightUpdater::ProcessFile]     - Now updating weights\n");
       }
 
@@ -299,6 +304,10 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
     }
 #endif
+
+    if(DoDebug){
+      printf("[WeightUpdater::ProcessFile] => Current fSR->mc.nu.size() = %ld\n", fSR->mc.nu.size());
+    }
 
     fOutputFlatSR->Clear();
     fOutputFlatSR->Fill(*fSR);
@@ -555,7 +564,9 @@ void WeightUpdater::Save(){
   TDirectory *OutTDir = fBaseDirName=="" ? fOutputFile : (TDirectory *)fOutputFile->Get(fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
 
   fOutputGlobalTree->SetDirectory(OutTDir);
+
   fOutputCAFTree->SetDirectory(OutTDir);
+
   fOutputGENIETree->SetDirectory(OutTDir);
 
   fOutputFile->Write();
