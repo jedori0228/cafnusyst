@@ -32,7 +32,10 @@ endif()
 
 # Conditionally find the required package based on the CAF_TYPE
 if(CAF_TYPE STREQUAL "sbn")
+
   find_package(sbnanaobj 09.20.06.03 REQUIRED)
+
+  message(STATUS "Building against sbnanaobj")
 
   set(ANAOBJ_LIBS
     sbnanaobj::StandardRecord
@@ -43,7 +46,10 @@ if(CAF_TYPE STREQUAL "sbn")
   add_compile_definitions(USE_SBNCAF)
 
 elseif(CAF_TYPE STREQUAL "dune")
+
   find_package(duneanaobj 03.05.00 REQUIRED)
+
+  message(STATUS "Building against duneanaobj")
 
   set(ANAOBJ_LIBS
     duneanaobj::StandardRecordProxy
