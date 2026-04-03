@@ -32,22 +32,6 @@
 #include "TChain.h"
 #include "TFile.h"
 
-// anaobj
-#ifdef USE_SBNCAF
-#include "sbnanaobj/StandardRecord/Proxy/FwdDeclare.h"
-#include "sbnanaobj/StandardRecord/Proxy/SRProxy.h"
-#include "sbnanaobj/StandardRecord/StandardRecord.h"
-#include "sbnanaobj/StandardRecord/SRGlobal.h"
-#include "sbnanaobj/StandardRecord/Flat/FlatRecord.h"
-#endif
-#ifdef USE_DUNECAF
-#include "duneanaobj/StandardRecord/Proxy/FwdDeclare.h"
-#include "duneanaobj/StandardRecord/Proxy/SRProxy.h"
-#include "duneanaobj/StandardRecord/StandardRecord.h"
-#include "duneanaobj/StandardRecord/SRGlobal.h"
-#include "duneanaobj/StandardRecord/Flat/FlatRecord.h"
-#endif
-
 // cafnusyst
 #include "cafnusyst/interface/WeightUpdater.h"
 
@@ -135,24 +119,14 @@ int main(int argc, char const *argv[]) {
 
   std::string filePath;
   cafnusyst::WeightUpdater wu(
-#ifdef USE_SBNCAF
     "",
-    "recTree", "rec",
-    "globalTree", "global",
-    "GenieEvtRecTree", "GenieEvtRec"
-#endif
-#ifdef USE_DUNECAF
-    "cafmaker",
     "cafTree", "rec",
     "globalTree", "global",
     "genieEvt", "genie_record"
-#endif
   ); 
   wu.SetOutputFileName(cliopts::output_filename);
   wu.SetNMaxCAFEventsToProcess(cliopts::NMax);
   wu.SetResponseHelper(cliopts::fclname);
-  wu.SetOutputPOTHistName("TotalPOT");
-  wu.SetOutputLivetimeHistName("TotalEvents");
   if(cliopts::DoDebug) wu.DoDebug = true;
 
   // Loop over input files

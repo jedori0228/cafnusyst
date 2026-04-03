@@ -22,47 +22,13 @@ endif()
 
 find_package(nusystematics 2.00.03 REQUIRED)
 
-# Define an option to specify the target flag
-set(CAF_TYPE "" CACHE STRING "Specify the target flag: 'sbn' or 'dune'")
+find_package(duneanaobj REQUIRED)
 
-# Ensure the user provides a valid CAF_TYPE
-if(NOT (CAF_TYPE STREQUAL "sbn" OR CAF_TYPE STREQUAL "dune"))
-    message(FATAL_ERROR "CAF_TYPE must be either 'sbn' or 'dune'")
-endif()
+message(STATUS "Building against duneanaobj")
 
-# Conditionally find the required package based on the CAF_TYPE
-if(CAF_TYPE STREQUAL "sbn")
-
-  find_package(sbnanaobj 09.20.06.03 REQUIRED)
-
-  message(STATUS "Building against sbnanaobj")
-
-  set(ANAOBJ_LIBS
-    sbnanaobj::StandardRecord
-    sbnanaobj::StandardRecordProxy
-    sbnanaobj::StandardRecordFlat
-  )
-
-  add_compile_definitions(USE_SBNCAF)
-
-elseif(CAF_TYPE STREQUAL "dune")
-
-  find_package(duneanaobj 03.05.00 REQUIRED)
-
-  message(STATUS "Building against duneanaobj")
-
-  set(ANAOBJ_LIBS
-    duneanaobj::StandardRecordProxy
-    duneanaobj::StandardRecordFlat
-    duneanaobj::StandardRecord
-    duneanaobj::StandardRecord_dict
-  )
-
-  add_compile_definitions(USE_DUNECAF)
-
-endif()
-
-
+set(ANAOBJ_LIBS
+  duneanaobj::all
+)
 
 find_package(GENIE3 REQUIRED)
 if(NOT TARGET GENIE3::All)

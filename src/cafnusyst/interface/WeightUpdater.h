@@ -13,20 +13,9 @@
 #include "Framework/Ntuple/NtpMCEventRecord.h"
 
 // anaobj
-#ifdef USE_SBNCAF
-#include "sbnanaobj/StandardRecord/Proxy/FwdDeclare.h"
-#include "sbnanaobj/StandardRecord/Proxy/SRProxy.h"
-#include "sbnanaobj/StandardRecord/StandardRecord.h"
-#include "sbnanaobj/StandardRecord/SRGlobal.h"
-#include "sbnanaobj/StandardRecord/Flat/FlatRecord.h"
-#endif
-#ifdef USE_DUNECAF
-#include "duneanaobj/StandardRecord/Proxy/FwdDeclare.h"
 #include "duneanaobj/StandardRecord/Proxy/SRProxy.h"
 #include "duneanaobj/StandardRecord/StandardRecord.h"
 #include "duneanaobj/StandardRecord/SRGlobal.h"
-#include "duneanaobj/StandardRecord/Flat/FlatRecord.h"
-#endif
 
 // nusystematics
 #include "nusystematics/utility/response_helper.hh"
@@ -68,25 +57,16 @@ public:
   size_t NProcessedFiles;
 
   TFile *fOutputFile;
-  TTree *fOutputCAFTree;
-  TTree *fOutputGENIETree;
   TTree *fOutputGlobalTree;
-  caf::FlatStandardRecord* fOutputFlatSR;
-  genie::NtpMCEventRecord *fOutputGENIENtp;
+  TTree *fOutputWeightTree;
+  std::uint32_t fSourceFileHash;
+  unsigned int fGenieEventCounter;
+  std::vector<std::vector<double>> fWeights;
 
   void SetOutputFileName(std::string FileName);
   void CreateMetadataTree(); // TODO
   void CreateGlobalTree(caf::SRGlobal* input_srglobal);
   unsigned int NExpectedWeights;
-
-  void SetOutputPOTHistName(std::string name);
-  void SetOutputLivetimeHistName(std::string name);
-  std::string fPOTHistName;
-  std::string fLivetimeHistName;
-  TH1D *fOutputPOT;
-  TH1D *fOutputLivetime;
-  bool AddPOTHist(TH1D *h_input);
-  bool AddLivetimeHist(TH1D *h_input);
 
   void Save();
 
