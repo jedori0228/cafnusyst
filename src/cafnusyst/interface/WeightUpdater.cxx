@@ -29,11 +29,18 @@ WeightUpdater::WeightUpdater(
   NProcessedFiles = 0;
 
   fOutputFile = nullptr;
+  fOutputCAFTree = nullptr;
+  fOutputGENIETree = nullptr;
   fOutputGlobalTree = nullptr;
-  fOutputWeightTree = nullptr;
+  fOutputFlatSR = nullptr;
+  fOutputGENIENtp = nullptr;
 
   NExpectedWeights = 0;
 
+  fOutputPOT = nullptr;
+  fOutputLivetime = nullptr;
+
+  CheckCAFToGENIEMatching = false;
   DoDebug = false;
 
 }
@@ -53,10 +60,6 @@ void WeightUpdater::SetNMaxCAFEventsToProcess(size_t nmax){
 void WeightUpdater::ProcessFile(std::string inputfile){
 
   TFile *f_input = TFile::Open(inputfile.c_str());
-
-  std::string fSourceFile = gSystem->BaseName(inputfile.c_str());
-  size_t fSourceFileHashFull = std::hash<std::string>{}(fSourceFile);
-  fSourceFileHash = static_cast<std::uint32_t>(fSourceFileHashFull);
 
   // CAF tree
 
@@ -156,28 +159,28 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
       auto& nu = srproxy->mc.nu[i_nu];
 
+      // TODO Find the matched GENIE EventRecord from this SRTrueInteraction
       size_t genieIdx = nu.genieIdx;
       fInputGENIETree->GetEntry(genieIdx);
-
-      fGenieEventCounter = genieIdx;
 
       // Get genie event record
       genie::EventRecord const &GenieGHep = *fInputGENIENtp->event;
 
       // CAF-to-GENIE matching validation
-      genie::GHepParticle *ISLep = GenieGHep.Probe();
-      TLorentzVector ISLepP4 = *ISLep->P4();
-      double enu_from_genie = ISLepP4.E();
-      if( std::fabs(nu.E.GetValue() - enu_from_genie) > 1E-5 ){
-        printf("[WeightUpdater::ProcessFile]     - ENu from CAF and GENIE are not close; matching problem\n");
-        printf("[WeightUpdater::ProcessFile]       ENu (CAF, GENIE) = (%f, %f), diff = %f > 1E-5\n", nu.E.GetValue(), enu_from_genie, std::fabs(nu.E.GetValue() - enu_from_genie));
-        abort();
-      }
-
-      if(DoDebug){
-        printf("[WeightUpdater::ProcessFile]     - ENu (Proxy) = %f\n", nu.E.GetValue());
-        printf("[WeightUpdater::ProcessFile]     - ENu from GENIE = %f\n", enu_from_genie);
-        printf("[WeightUpdater::ProcessFile]     - Running responses..\n");
+      if(CheckCAFToGENIEMatching){
+        genie::GHepParticle *ISLep = GenieGHep.Probe();
+        TLorentzVector ISLepP4 = *ISLep->P4();
+        double enu_from_genie = ISLepP4.E();
+        if( std::fabs(nu.E.GetValue() - enu_from_genie) > 1E-5 ){
+          printf("[WeightUpdater::ProcessFile]     - ENu from CAF and GENIE are not close; matching problem\n");
+          printf("[WeightUpdater::ProcessFile]       ENu (CAF, GENIE) = (%f, %f), diff = %f > 1E-5\n", nu.E.GetValue(), enu_from_genie, std::fabs(nu.E.GetValue() - enu_from_genie));
+          abort();
+        }
+        if(DoDebug){
+          printf("[WeightUpdater::ProcessFile]     - ENu (Proxy) = %f\n", nu.E.GetValue());
+          printf("[WeightUpdater::ProcessFile]     - ENu from GENIE = %f\n", enu_from_genie);
+          printf("[WeightUpdater::ProcessFile]     - Running responses..\n");
+        }
       }
 
       // Evaluate reweights
@@ -189,12 +192,13 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
       if(DoDebug){
         printf("[WeightUpdater::ProcessFile]     - => done.\n");
-        //printf("[WeightUpdater::ProcessFile]     - Current number size of wgt = %ld\n", fSR->mc.nu[i_nu].wgt.size());
+        printf("[WeightUpdater::ProcessFile]     - Current number size of syst_dials = %ld\n", fSR->mc.nu[i_nu].syst_dials.size());
         printf("[WeightUpdater::ProcessFile]     - Now updating weights\n");
       }
 
-
-      fWeights.clear();
+      // It is possible that we are processing multiple input CAFs
+      // Then the genieIdx should be updated using the current number of EventRecord read
+      fSR->mc.nu[i_nu].genieIdx = GlobalGENIEEventCounter;
 
       for(const auto& v: resp){
         const systtools::paramId_t& pid = v.pid;
@@ -213,19 +217,24 @@ void WeightUpdater::ProcessFile(std::string inputfile){
           continue;
         }
 
-        fWeights.emplace_back();
+        // Upated fSR (caf::StandardRecord*),
+        // convert this into FlatRecord using flat::Flat::Fill(const T& x)
+        fSR->mc.nu[i_nu].syst_dials.emplace_back();
         for(const auto& w: ws){
-          fWeights.back().push_back(w);
           if(DoDebug){
             printf("[WeightUpdater::ProcessFile]       - w =  = %f\n", w);
           }
+          fSR->mc.nu[i_nu].syst_dials.back().weights.push_back(w);
         }
 
       } // END resp loop
 
+      // Also fill output GENIE tree
+      fOutputGENIENtp->Fill(GlobalGENIEEventCounter, &GenieGHep);
+      fOutputGENIETree->Fill();
+
       GlobalGENIEEventCounter++;
 
-      fOutputWeightTree->Fill();
 
     } // END nu loop
 
@@ -236,6 +245,10 @@ void WeightUpdater::ProcessFile(std::string inputfile){
     if(DoDebug){
       printf("[WeightUpdater::ProcessFile] => Current fSR->mc.nu.size() = %ld\n", fSR->mc.nu.size());
     }
+
+    fOutputFlatSR->Clear();
+    fOutputFlatSR->Fill(*fSR);
+    fOutputCAFTree->Fill();
 
     NProcessedCAFEvents++;
 
@@ -252,10 +265,11 @@ void WeightUpdater::SetOutputFileName(std::string FileName){
 
   fOutputFile = new TFile(FileName.c_str(), "RECREATE");
 
-  fOutputWeightTree = new TTree("weightTree", "weightTree");
-  fOutputWeightTree->Branch("GENIEEntry", &fGenieEventCounter, "GENIEEntry/i");
-  fOutputWeightTree->Branch("SourceFileHash", &fSourceFileHash, "SourceFileHash/i");
-  fOutputWeightTree->Branch("Weights", &fWeights);
+  fOutputCAFTree = new TTree(fCAFTreeName.c_str(), fCAFTreeName.c_str());
+  fOutputFlatSR = new caf::FlatStandardRecord(fOutputCAFTree, fSRName.c_str(), "", 0);
+
+  fOutputGENIETree = new TTree(fGENIETreeName.c_str(), fGENIETreeName.c_str());
+  fOutputGENIETree->Branch(fGENIERecName.c_str(), &fOutputGENIENtp);
 
   CreateMetadataTree();
 
@@ -298,15 +312,13 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
     // Copying from input SRGlobal
     printf("[WeightUpdater::CreateGlobalTree] @@ Copying input SRGlobal\n");
 
-/*
     printf("[WeightUpdater::CreateGlobalTree] - Number of Parameter sets = %d\n", input_srglobal->wgts.params.size());
     for(unsigned int i = 0; i < input_srglobal->wgts.params.size(); ++i){
       const caf::SRSystParamHeader& pset = input_srglobal->wgts.params[i];
-      std::cout << "  " << i << ": " << pset.name << ", id = " << pset.id << ", nshifts = " << pset.nshifts << std::endl;
 
       srglobal.wgts.params.push_back( pset );
     }
-*/
+
   }
 
   // Now adding new weights
@@ -355,7 +367,6 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
 
     // Name
     srglobal.wgts.params.back().name = fRH->GetSystProvider()[matched_idx_sp]->GetFullyQualifiedName()+"_"+sph.prettyName;
-    srglobal.wgts.params.back().nshifts = sph.isCorrection ? 1 : sph.paramVariations.size();
 
     printf("[WeightUpdater::CreateGlobalTree] Adding %s to globalTree\n", srglobal.wgts.params.back().name.c_str());
 
@@ -400,7 +411,8 @@ void WeightUpdater::Save(){
   TDirectory *OutTDir = fBaseDirName=="" ? fOutputFile : (TDirectory *)fOutputFile->Get(fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
 
   fOutputGlobalTree->SetDirectory(OutTDir);
-  fOutputWeightTree->BuildIndex("SourceFileHash", "GENIEEntry");
+  fOutputCAFTree->SetDirectory(OutTDir);
+  fOutputGENIETree->SetDirectory(OutTDir);
 
   fOutputFile->Write();
   fOutputFile->Close();

@@ -1,6 +1,6 @@
 LIST(APPEND TARGETS_TO_BUILD 
-#ReadCAF
 UpdateReweight
+ReadCAF
 )
 
 foreach(targ ${TARGETS_TO_BUILD})

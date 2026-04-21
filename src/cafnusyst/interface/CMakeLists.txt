@@ -1,9 +1,11 @@
 SET(IFCE_IMPLFILES
   WeightUpdater.cxx
+  LoopRecord.cxx
 )
 
 SET(IFCE_HDRFILES
   WeightUpdater.h
+  LoopRecord.h
 )
 
 

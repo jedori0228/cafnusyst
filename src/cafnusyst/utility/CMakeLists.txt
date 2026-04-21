@@ -1,9 +1,11 @@
 SET(IFCE_IMPLFILES
   Utilities.cxx
+  NuTreeHelper.cxx
 )
 
 SET(IFCE_HDRFILES
   Utilities.h
+  NuTreeHelper.h
 )
 
 

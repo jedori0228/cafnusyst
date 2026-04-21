@@ -27,7 +27,10 @@ find_package(duneanaobj REQUIRED)
 message(STATUS "Building against duneanaobj")
 
 set(ANAOBJ_LIBS
-  duneanaobj::all
+    duneanaobj::StandardRecordProxy
+    duneanaobj::StandardRecordFlat
+    duneanaobj::StandardRecord
+    duneanaobj::StandardRecord_dict
 )
 
 find_package(GENIE3 REQUIRED)

@@ -23,14 +23,15 @@
 #include "nusystematics/utility/response_helper.hh"
 // cafnusyst
 #include "cafnusyst/utility/Utilities.h"
+#include "cafnusyst/utility/NuTreeHelper.h"
 
 namespace cafnusyst{
 
-class WeightUpdater{
+class LoopRecord{
 
 public:
 
-  WeightUpdater(
+  LoopRecord(
     std::string basedirname,
     std::string caftreename,
     std::string srname,
@@ -39,10 +40,7 @@ public:
     std::string genietreename,
     std::string genierecname
   );
-  ~WeightUpdater();
-
-  nusyst::response_helper* fRH;
-  void SetResponseHelper(std::string fclname);
+  ~LoopRecord();
 
   std::string fBaseDirName;
   std::string fCAFTreeName;
@@ -58,31 +56,11 @@ public:
   void ProcessFile(std::string inputfile);
   size_t NProcessedFiles;
 
-  TFile *fOutputFile;
-  TTree *fOutputCAFTree;
-  TTree *fOutputGENIETree;
-  TTree *fOutputGlobalTree;
-  caf::FlatStandardRecord* fOutputFlatSR;
-  genie::NtpMCEventRecord *fOutputGENIENtp;
-
-  void SetOutputFileName(std::string FileName);
-  void CreateMetadataTree(); // TODO
-  void CreateGlobalTree(caf::SRGlobal* input_srglobal);
-  unsigned int NExpectedWeights;
-
-  void SetOutputPOTHistName(std::string name);
-  void SetOutputLivetimeHistName(std::string name);
-  std::string fPOTHistName;
-  std::string fLivetimeHistName;
-  TH1D *fOutputPOT;
-  TH1D *fOutputLivetime;
-  bool AddPOTHist(TH1D *h_input);
-  bool AddLivetimeHist(TH1D *h_input);
-
-  void Save();
-
-  bool CheckCAFToGENIEMatching;
   bool DoDebug;
+
+  // output
+
+  NuTreeHelper* nuTreeHelper{nullptr};
 
 };
 
