@@ -199,7 +199,9 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       // It is possible that we are processing multiple input CAFs
       // Then the genieIdx should be updated using the current number of EventRecord read
       fSR->mc.nu[i_nu].genieIdx = GlobalGENIEEventCounter;
-
+      // TODO I see the weights from previous spill are seen here.. need to clear it
+      //      But this will make "updating" of weights more complicated
+      fSR->mc.nu[i_nu].syst_dials.clear();
       for(const auto& v: resp){
         const systtools::paramId_t& pid = v.pid;
         const double& CVw = v.CV_response;
