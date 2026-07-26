@@ -35,6 +35,7 @@ private:
 
   // Variables
   Double_t Enu;
+  std::vector<std::vector<double>> rws;
   Int_t Mode;
 
 
