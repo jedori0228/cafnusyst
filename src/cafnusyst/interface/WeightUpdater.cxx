@@ -1,6 +1,7 @@
 #include "WeightUpdater.h"
 #include "TROOT.h"
 #include "TSystem.h"
+#include "TNamed.h"
 
 namespace cafnusyst{
 
@@ -427,6 +428,12 @@ void WeightUpdater::Save(){
   printf("[WeightUpdater::Save] Saving output\n");
 
   fOutputFile->cd();
+
+  // Provenance: record the output StandardRecord branch name and the write mode 
+  // so a reader can self-configure (see README for the friend-tree read recipes)
+  // instead of relying on the user to remember how it was written.
+  TNamed("cafnusyst_srbranch", fSRName.c_str()).Write();
+  TNamed("cafnusyst_mode", fWeightsOnly ? "weights-only" : "full").Write();
 
   if(fBaseDirName!=""){
     fOutputFile->mkdir( fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());

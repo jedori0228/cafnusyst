@@ -107,5 +107,22 @@ parent's (empty) weights:
 - `--sr-branch <other>`: `AddFriend` resolves cleanly by bare name; read the
   weights under that prefix.
 
+## Output provenance
+
+Every output file records how it was written as two top-level `TNamed`
+objects, so a reader can pick the right access pattern without having to know
+the weight updater command that was used:
+
+- `cafnusyst_srbranch` — title is the output `StandardRecord` branch name
+  (e.g. `rec`), i.e. the value of `--sr-branch`.
+- `cafnusyst_mode` — title is `weights-only` or `full`.
+
+Read them back with the templated `TDirectory::Get<T>()` (returns `nullptr`
+on a type mismatch):
+```cpp
+TString branch = f->Get<TNamed>("cafnusyst_srbranch")->GetTitle();
+TString mode   = f->Get<TNamed>("cafnusyst_mode")->GetTitle();
+```
+
 
 
