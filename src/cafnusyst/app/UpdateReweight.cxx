@@ -113,7 +113,7 @@ int main(int argc, char const *argv[]) {
 
   std::ifstream inputFile(cliopts::input_filename);
   if(!inputFile.is_open()){
-    printf("[ERROR] %s does not exist\n", cliopts::input_filename);
+    printf("[ERROR] %s does not exist\n", cliopts::input_filename.c_str());
     return 1;
   }
 
