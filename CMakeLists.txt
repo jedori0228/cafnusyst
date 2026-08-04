@@ -55,6 +55,13 @@ add_library(cafnusyst::commondeps ALIAS cafnusyst_dependencies)
 
 install(TARGETS cafnusyst_dependencies EXPORT cafnusyst-targets)
 
+# Preserve the RPATH for external libraries (ROOT, GENIE, yaml-cpp) during install
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# Ensure installed binaries can find internal shared libraries installed to lib/
+# Note: Use CMAKE_INSTALL_LIBDIR since Eigen3 sets it, or hardcode "lib"
+list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
 add_subdirectory(src/cafnusyst)
 
 add_subdirectory(fcls)
