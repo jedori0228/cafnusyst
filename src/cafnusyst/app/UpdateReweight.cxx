@@ -44,8 +44,11 @@ namespace cliopts {
   std::string envvar = "FHICL_FILE_PATH";
   std::string fhicl_key = "generated_systematic_provider_configuration";
   size_t NMax = std::numeric_limits<size_t>::max();
+  bool NMaxSet = false;
   size_t NSkip = 0;
   bool DoDebug = false;
+  bool WeightsOnly = false;
+  std::string sr_branch = "rec";
 } // namespace cliopts
 
 void SayUsage(char const *argv[]) {
@@ -60,6 +63,11 @@ void SayUsage(char const *argv[]) {
                "\t-N <NMax>        : Maximum number of events to process.\n"
                "\t-s <NSkip>       : Number of events to skip.\n"
                "\t-o <out.root>    : File to write validation canvases to.\n"
+               "\t--weights-only   : Emit a slim record with only the weights populated \n"
+               "\t                   (for use as a friend of the input CAF).\n"
+               "\t                   Incompatible with -N.\n"
+               "\t--sr-branch <n>  : StandardRecord branch name in the output,\n"
+               "\t                   \"rec\" by default.\n"
                "\t--debug          : Run debugging mode.\n"
             << std::endl;
 }
@@ -79,10 +87,16 @@ void HandleOpts(int argc, char const *argv[]) {
       cliopts::input_filename = argv[++opt];
     } else if (std::string(argv[opt]) == "-N") {
       cliopts::NMax = systtools::str2T<size_t>(argv[++opt]);
+      cliopts::NMaxSet = true;
     } else if (std::string(argv[opt]) == "-s") {
       cliopts::NSkip = systtools::str2T<size_t>(argv[++opt]);
     } else if (std::string(argv[opt]) == "-o") {
       cliopts::output_filename = argv[++opt];
+    } else if (std::string(argv[opt]) == "--weights-only") {
+      cliopts::WeightsOnly = true;
+      ++opt;
+    } else if (std::string(argv[opt]) == "--sr-branch") {
+      cliopts::sr_branch = argv[++opt];
     } else if (std::string(argv[opt]) == "--debug") {
       cliopts::DoDebug = true;
       ++opt;
@@ -110,6 +124,12 @@ int main(int argc, char const *argv[]) {
     SayUsage(argv);
     return 1;
   }
+  if (cliopts::WeightsOnly && cliopts::NMaxSet) {
+    std::cout << "[ERROR]: -N (event cap) is incompatible with --weights-only: "
+                 "a truncated output cannot stay entry-aligned with the parent CAF."
+              << std::endl;
+    return 1;
+  }
 
   std::ifstream inputFile(cliopts::input_filename);
   if(!inputFile.is_open()){
@@ -120,10 +140,11 @@ int main(int argc, char const *argv[]) {
   std::string filePath;
   cafnusyst::WeightUpdater wu(
     "",
-    "cafTree", "rec",
+    "cafTree", cliopts::sr_branch,
     "globalTree", "global",
     "genieEvt", "genie_record"
-  ); 
+  );
+  wu.fWeightsOnly = cliopts::WeightsOnly;
   wu.SetOutputFileName(cliopts::output_filename);
   wu.SetNMaxCAFEventsToProcess(cliopts::NMax);
   wu.SetResponseHelper(cliopts::fclname);

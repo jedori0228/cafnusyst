@@ -84,6 +84,8 @@ public:
   bool CheckCAFToGENIEMatching;
   bool DoDebug;
 
+  bool fWeightsOnly;
+
 };
 
 } // END namespace cafnusyst

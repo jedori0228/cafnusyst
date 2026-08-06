@@ -26,12 +26,24 @@ find_package(duneanaobj REQUIRED)
 
 message(STATUS "Building against duneanaobj")
 
+# StandardRecord and its ROOT dictionary are always required.
 set(ANAOBJ_LIBS
-    duneanaobj::StandardRecordProxy
-    duneanaobj::StandardRecordFlat
     duneanaobj::StandardRecord
     duneanaobj::StandardRecord_dict
 )
+
+# StandardRecordProxy / StandardRecordFlat are not exported as targets by every duneanaobj install (due to errors in the build scripts).
+# Link them when available; otherwise the headers and the explicit template instantiations in the sources 
+# are expected to supply the needed symbols.
+foreach(_opt_anaobj_target
+    duneanaobj::StandardRecordProxy
+    duneanaobj::StandardRecordFlat)
+  if(TARGET ${_opt_anaobj_target})
+    list(APPEND ANAOBJ_LIBS ${_opt_anaobj_target})
+  else()
+    message(STATUS "duneanaobj target ${_opt_anaobj_target} not exported; relying on headers/explicit instantiation")
+  endif()
+endforeach()
 
 find_package(GENIE3 REQUIRED)
 if(NOT TARGET GENIE3::All)

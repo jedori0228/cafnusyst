@@ -1,6 +1,7 @@
 #include "WeightUpdater.h"
 #include "TROOT.h"
 #include "TSystem.h"
+#include "TNamed.h"
 
 namespace cafnusyst{
 
@@ -42,6 +43,8 @@ WeightUpdater::WeightUpdater(
 
   CheckCAFToGENIEMatching = false;
   DoDebug = false;
+
+  fWeightsOnly = false;
 
 }
 
@@ -150,6 +153,13 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       printf("[WeightUpdater::ProcessFile] - N_MC = %ld\n", N_MC);
     }
 
+    // In weights-only mode, emit a slim record with only syst_dials populated. 
+    // Size mc.nu to the input so index alignment is preserved.
+    caf::StandardRecord outSR;
+    if(fWeightsOnly){
+      outSR.mc.nu.resize(N_MC);
+    }
+
     // now loop over true neutrinos
     for(size_t i_nu=0; i_nu<N_MC; i_nu++){
 
@@ -158,6 +168,10 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       }
 
       auto& nu = srproxy->mc.nu[i_nu];
+
+      // Recomputed weights go to the full input record (full mode)
+      // or the slim output record (weights-only mode).
+      caf::SRTrueInteraction& outNu = fWeightsOnly ? outSR.mc.nu[i_nu] : fSR->mc.nu[i_nu];
 
       // TODO Find the matched GENIE EventRecord from this SRTrueInteraction
       size_t genieIdx = nu.genieIdx;
@@ -192,16 +206,19 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
       if(DoDebug){
         printf("[WeightUpdater::ProcessFile]     - => done.\n");
-        printf("[WeightUpdater::ProcessFile]     - Current number size of syst_dials = %ld\n", fSR->mc.nu[i_nu].syst_dials.size());
+        printf("[WeightUpdater::ProcessFile]     - Current number size of syst_dials = %ld\n", outNu.syst_dials.size());
         printf("[WeightUpdater::ProcessFile]     - Now updating weights\n");
       }
 
       // It is possible that we are processing multiple input CAFs
-      // Then the genieIdx should be updated using the current number of EventRecord read
-      fSR->mc.nu[i_nu].genieIdx = GlobalGENIEEventCounter;
-      // TODO I see the weights from previous spill are seen here.. need to clear it
-      //      But this will make "updating" of weights more complicated
-      fSR->mc.nu[i_nu].syst_dials.clear();
+      // Then the genieIdx should be updated using the current number of EventRecord read.
+      // genieIdx refers into the re-indexed GENIE tree, which is not written in
+      // weights-only mode; there we leave it at its default (-1).
+      if(!fWeightsOnly){
+        outNu.genieIdx = GlobalGENIEEventCounter;
+      }
+      // Start from an empty syst_dials so weights from a previous spill do not linger.
+      outNu.syst_dials.clear();
       for(const auto& v: resp){
         const systtools::paramId_t& pid = v.pid;
         const double& CVw = v.CV_response;
@@ -219,23 +236,24 @@ void WeightUpdater::ProcessFile(std::string inputfile){
           continue;
         }
 
-        // Upated fSR (caf::StandardRecord*),
+        // Upated record (caf::StandardRecord),
         // convert this into FlatRecord using flat::Flat::Fill(const T& x)
-        fSR->mc.nu[i_nu].syst_dials.emplace_back();
+        outNu.syst_dials.emplace_back();
         for(const auto& w: ws){
           if(DoDebug){
             printf("[WeightUpdater::ProcessFile]       - w =  = %f\n", w);
           }
-          fSR->mc.nu[i_nu].syst_dials.back().weights.push_back(w);
+          outNu.syst_dials.back().weights.push_back(w);
         }
 
       } // END resp loop
 
-      // Also fill output GENIE tree
-      fOutputGENIENtp->Fill(GlobalGENIEEventCounter, &GenieGHep);
-      fOutputGENIETree->Fill();
-
-      GlobalGENIEEventCounter++;
+      // Also fill output GENIE tree (not emitted in weights-only mode)
+      if(!fWeightsOnly){
+        fOutputGENIENtp->Fill(GlobalGENIEEventCounter, &GenieGHep);
+        fOutputGENIETree->Fill();
+        GlobalGENIEEventCounter++;
+      }
 
 
     } // END nu loop
@@ -249,7 +267,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
     }
 
     fOutputFlatSR->Clear();
-    fOutputFlatSR->Fill(*fSR);
+    fOutputFlatSR->Fill(fWeightsOnly ? outSR : *fSR);
     fOutputCAFTree->Fill();
 
     NProcessedCAFEvents++;
@@ -270,8 +288,12 @@ void WeightUpdater::SetOutputFileName(std::string FileName){
   fOutputCAFTree = new TTree(fCAFTreeName.c_str(), fCAFTreeName.c_str());
   fOutputFlatSR = new caf::FlatStandardRecord(fOutputCAFTree, fSRName.c_str(), "", 0);
 
-  fOutputGENIETree = new TTree(fGENIETreeName.c_str(), fGENIETreeName.c_str());
-  fOutputGENIETree->Branch(fGENIERecName.c_str(), &fOutputGENIENtp);
+  // The GENIE tree only exists to feed nusystematics on the input side; a
+  // weights-only friend file does not carry it.
+  if(!fWeightsOnly){
+    fOutputGENIETree = new TTree(fGENIETreeName.c_str(), fGENIETreeName.c_str());
+    fOutputGENIETree->Branch(fGENIERecName.c_str(), &fOutputGENIENtp);
+  }
 
   CreateMetadataTree();
 
@@ -407,6 +429,12 @@ void WeightUpdater::Save(){
 
   fOutputFile->cd();
 
+  // Provenance: record the output StandardRecord branch name and the write mode 
+  // so a reader can self-configure (see README for the friend-tree read recipes)
+  // instead of relying on the user to remember how it was written.
+  TNamed("cafnusyst_srbranch", fSRName.c_str()).Write();
+  TNamed("cafnusyst_mode", fWeightsOnly ? "weights-only" : "full").Write();
+
   if(fBaseDirName!=""){
     fOutputFile->mkdir( fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
   }
@@ -414,7 +442,7 @@ void WeightUpdater::Save(){
 
   fOutputGlobalTree->SetDirectory(OutTDir);
   fOutputCAFTree->SetDirectory(OutTDir);
-  fOutputGENIETree->SetDirectory(OutTDir);
+  if(fOutputGENIETree) fOutputGENIETree->SetDirectory(OutTDir);
 
   fOutputFile->Write();
   fOutputFile->Close();
