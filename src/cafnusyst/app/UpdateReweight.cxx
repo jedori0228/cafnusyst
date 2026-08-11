@@ -47,6 +47,7 @@ namespace cliopts {
   bool NMaxSet = false;
   size_t NSkip = 0;
   bool DoDebug = false;
+  bool DoMonitor = false;
   bool WeightsOnly = false;
   std::string sr_branch = "rec";
 } // namespace cliopts
@@ -69,6 +70,10 @@ void SayUsage(char const *argv[]) {
                "\t--sr-branch <n>  : StandardRecord branch name in the output,\n"
                "\t                   \"rec\" by default.\n"
                "\t--debug          : Run debugging mode.\n"
+               "\t--monitor        : Evaluate and print resource usage (wall/cpu time,\n"
+               "\t                   peak RSS) for configuring the response_helper,\n"
+               "\t                   creating the GlobalTree, and evaluating+saving\n"
+               "\t                   reweights.\n"
             << std::endl;
 }
 
@@ -99,6 +104,9 @@ void HandleOpts(int argc, char const *argv[]) {
       cliopts::sr_branch = argv[++opt];
     } else if (std::string(argv[opt]) == "--debug") {
       cliopts::DoDebug = true;
+      ++opt;
+    } else if (std::string(argv[opt]) == "--monitor") {
+      cliopts::DoMonitor = true;
       ++opt;
     } else {
       std::cout << "[ERROR]: Unknown option: " << argv[opt] << std::endl;
@@ -145,10 +153,11 @@ int main(int argc, char const *argv[]) {
     "genieEvt", "genie_record"
   );
   wu.fWeightsOnly = cliopts::WeightsOnly;
+  if(cliopts::DoDebug) wu.DoDebug = true;
+  if(cliopts::DoMonitor) wu.DoMonitor = true;
   wu.SetOutputFileName(cliopts::output_filename);
   wu.SetNMaxCAFEventsToProcess(cliopts::NMax);
   wu.SetResponseHelper(cliopts::fclname);
-  if(cliopts::DoDebug) wu.DoDebug = true;
 
   // Loop over input files
   while (std::getline(inputFile, filePath)) {

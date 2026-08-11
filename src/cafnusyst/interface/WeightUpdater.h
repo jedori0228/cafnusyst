@@ -87,10 +87,20 @@ public:
 
   bool fWeightsOnly;
 
+  // When true, evaluate and print resource usage (wall/cpu time, peak RSS)
+  // for the configuring-response_helper, creating-GlobalTree, and
+  // evaluating+saving-reweights steps. Off by default since getrusage()
+  // calls add a small overhead of their own. Set this (e.g. from a
+  // --monitor CLI option) before calling SetResponseHelper()/ProcessFile()
+  // so it takes effect for all monitored steps.
+  bool DoMonitor;
+
   // Resource usage (wall/cpu time, peak RSS) accumulated across every
   // "evaluate + save reweights" step (one per SRTrueInteraction). Reported
   // once, in Save(), rather than per-neutrino to avoid flooding stdout.
-  cafnusyst::ResourceAccumulator fReweightResourceAcc{"Evaluating+saving reweights (per nu)"};
+  // Disabled by default; ProcessFile() syncs its enabled state with
+  // DoMonitor on every call.
+  cafnusyst::ResourceAccumulator fReweightResourceAcc{"Evaluating+saving reweights (per nu)", false};
 
 };
 

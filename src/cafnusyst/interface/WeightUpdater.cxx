@@ -46,6 +46,8 @@ WeightUpdater::WeightUpdater(
 
   fWeightsOnly = false;
 
+  DoMonitor = false;
+
 }
 
 WeightUpdater::~WeightUpdater(){
@@ -53,7 +55,7 @@ WeightUpdater::~WeightUpdater(){
 }
 
 void WeightUpdater::SetResponseHelper(std::string fclname){
-  cafnusyst::ScopedResourceReport rr("Configuring response_helper");
+  cafnusyst::ScopedResourceReport rr("Configuring response_helper", DoMonitor);
   fRH = new nusyst::response_helper(fclname);
 }
 
@@ -63,6 +65,10 @@ void WeightUpdater::SetNMaxCAFEventsToProcess(size_t nmax){
 
 void WeightUpdater::ProcessFile(std::string inputfile){
 
+  // DoMonitor may have been (re)set on wu since construction; keep the
+  // per-neutrino accumulator's enabled state in sync with it.
+  fReweightResourceAcc.SetEnabled(DoMonitor);
+
   TFile *f_input = TFile::Open(inputfile.c_str());
 
   // CAF tree
@@ -70,9 +76,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
   TTree *fInputCAFTree = (TTree *)f_input->Get( (fBaseDirName+fCAFTreeName).c_str());
   size_t ThisNCAFEvents = fInputCAFTree->GetEntries();
 
-  if(DoDebug){
-    printf("[WeightUpdater::ProcessFile] ThisNCAFEvents = %ld\n", ThisNCAFEvents);
-  }
+  printf("[WeightUpdater::ProcessFile] Total number of events (CAF entries) in this file = %ld\n", ThisNCAFEvents);
 
   const caf::CAFType caftype = caf::GetCAFType(fInputCAFTree);
 
@@ -128,12 +132,11 @@ void WeightUpdater::ProcessFile(std::string inputfile){
   // - SRProxy to access record
   caf::StandardRecordProxy* srproxy = new caf::StandardRecordProxy(fInputCAFTree, fSRName.c_str());
 
+  size_t TotalNuThisFile = 0;
+
   // Loop over CAFTree
   for (size_t cafev_it = 0; cafev_it < ThisNCAFEvents; ++cafev_it) {
 
-    if(DoDebug){
-      printf("[WeightUpdater::ProcessFile] * CAF entry = %ld\n", cafev_it);
-    }
     // Check if NMaxCAFEventsToProcess is set
     if( NMaxCAFEventsToProcess>0 ){
       // if set, check if we have reached the maximum
@@ -150,9 +153,9 @@ void WeightUpdater::ProcessFile(std::string inputfile){
     //===========================
 
     const size_t N_MC = srproxy->mc.nu.size();
-    if(DoDebug){
-      printf("[WeightUpdater::ProcessFile] - N_MC = %ld\n", N_MC);
-    }
+    printf("[WeightUpdater::ProcessFile] * CAF entry %ld/%ld (spill): N(SRTrueInteraction) = %ld\n",
+           cafev_it + 1, ThisNCAFEvents, N_MC);
+    TotalNuThisFile += N_MC;
 
     // In weights-only mode, emit a slim record with only syst_dials populated. 
     // Size mc.nu to the input so index alignment is preserved.
@@ -279,6 +282,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
   NProcessedFiles++;
 
+  printf("[WeightUpdater::ProcessFile] Total number of neutrinos (SRTrueInteraction) processed in this file = %ld\n", TotalNuThisFile);
   printf("[WeightUpdater::ProcessFile] -----------------\n");
   printf("[WeightUpdater::ProcessFile] File done\n");
 
@@ -325,7 +329,7 @@ void WeightUpdater::CreateMetadataTree(){
 
 void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
 
-  cafnusyst::ScopedResourceReport rr("Creating GlobalTree");
+  cafnusyst::ScopedResourceReport rr("Creating GlobalTree", DoMonitor);
 
   if(!fRH){
     printf("[WeightUpdater::CreateGlobalTree] Response helper is not set. Run WeightUpdater::SetResponseHelper()\n");
