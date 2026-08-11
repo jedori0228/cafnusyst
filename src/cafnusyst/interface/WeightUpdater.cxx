@@ -53,6 +53,7 @@ WeightUpdater::~WeightUpdater(){
 }
 
 void WeightUpdater::SetResponseHelper(std::string fclname){
+  cafnusyst::ScopedResourceReport rr("Configuring response_helper");
   fRH = new nusyst::response_helper(fclname);
 }
 
@@ -198,6 +199,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       }
 
       // Evaluate reweights
+      fReweightResourceAcc.Start();
       systtools::event_unit_response_w_cv_t resp = fRH->GetEventVariationAndCVResponse(GenieGHep);
       if(resp.size() != NExpectedWeights){
         printf("[WeightUpdater::ProcessFile] resp.size() = %ld but NExpectedWeights = %ld\n", resp.size(), NExpectedWeights);
@@ -247,6 +249,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
         }
 
       } // END resp loop
+      fReweightResourceAcc.Stop();
 
       // Also fill output GENIE tree (not emitted in weights-only mode)
       if(!fWeightsOnly){
@@ -321,6 +324,8 @@ void WeightUpdater::CreateMetadataTree(){
 }
 
 void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
+
+  cafnusyst::ScopedResourceReport rr("Creating GlobalTree");
 
   if(!fRH){
     printf("[WeightUpdater::CreateGlobalTree] Response helper is not set. Run WeightUpdater::SetResponseHelper()\n");
@@ -426,6 +431,8 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
 void WeightUpdater::Save(){
 
   printf("[WeightUpdater::Save] Saving output\n");
+
+  fReweightResourceAcc.Report();
 
   fOutputFile->cd();
 

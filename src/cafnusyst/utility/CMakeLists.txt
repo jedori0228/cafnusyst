@@ -6,6 +6,7 @@ SET(IFCE_IMPLFILES
 SET(IFCE_HDRFILES
   Utilities.h
   NuTreeHelper.h
+  ResourceMonitor.h
 )
 
 

@@ -23,6 +23,7 @@
 #include "nusystematics/utility/response_helper.hh"
 // cafnusyst
 #include "cafnusyst/utility/Utilities.h"
+#include "cafnusyst/utility/ResourceMonitor.h"
 
 namespace cafnusyst{
 
@@ -85,6 +86,11 @@ public:
   bool DoDebug;
 
   bool fWeightsOnly;
+
+  // Resource usage (wall/cpu time, peak RSS) accumulated across every
+  // "evaluate + save reweights" step (one per SRTrueInteraction). Reported
+  // once, in Save(), rather than per-neutrino to avoid flooding stdout.
+  cafnusyst::ResourceAccumulator fReweightResourceAcc{"Evaluating+saving reweights (per nu)"};
 
 };
 
