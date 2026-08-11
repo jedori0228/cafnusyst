@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -19,6 +20,7 @@
 #include "nusystematics/utility/GENIEUtils.hh"
 #include "nusystematics/utility/enumclass2int.hh"
 #include "nusystematics/utility/response_helper.hh"
+#include "nusystematics/utility/silence_genie.hh"
 // GENIE
 #include "Framework/EventGen/EventRecord.h"
 #include "Framework/GHEP/GHepParticle.h"
@@ -109,8 +111,6 @@ void HandleOpts(int argc, char const *argv[]) {
 
 int main(int argc, char const *argv[]) {
 
-  genie::Messenger::Instance()->SetPrioritiesFromXmlFile("Messenger_laconic.xml"); // quiet mode
-
   HandleOpts(argc, argv);
   if (!cliopts::yamlname.size()) {
     std::cout << "[ERROR]: Expected to be passed a -c option." << std::endl;
@@ -127,6 +127,10 @@ int main(int argc, char const *argv[]) {
                  "a truncated output cannot stay entry-aligned with the parent CAF."
               << std::endl;
     return 1;
+  }
+
+  if (!cliopts::DoDebug) {
+    nusyst::quiet::SetGlobalQuiet(); // mute ROOT INFO/WARN diagnostics
   }
 
   std::ifstream inputFile(cliopts::input_filename);
@@ -147,7 +151,17 @@ int main(int argc, char const *argv[]) {
   if(cliopts::DoMonitor) wu.DoMonitor = true;
   wu.SetOutputFileName(cliopts::output_filename);
   wu.SetNMaxCAFEventsToProcess(cliopts::NMax);
-  wu.SetResponseHelper(cliopts::yamlname);
+
+  {
+    // Silence GENIE's mandatory banner, log4cpp INFO/NOTICE chatter, and
+    // response_helper/provider init chatter -- unless --debug was requested,
+    // in which case let it all print normally.
+    std::unique_ptr<nusyst::quiet::StdoutSink> quiet;
+    if (!cliopts::DoDebug) quiet.reset(new nusyst::quiet::StdoutSink());
+    genie::Messenger::Instance()->SetPrioritiesFromXmlFile(
+        cliopts::DoDebug ? "Messenger_laconic.xml" : "Messenger_whisper.xml");
+    wu.SetResponseHelper(cliopts::yamlname);
+  }
 
   // Loop over input files
   while (std::getline(inputFile, filePath)) {
