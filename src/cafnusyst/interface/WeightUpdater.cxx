@@ -205,7 +205,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       fReweightResourceAcc.Start();
       systtools::event_unit_response_w_cv_t resp = fRH->GetEventVariationAndCVResponse(GenieGHep);
       if(resp.size() != NExpectedWeights){
-        printf("[WeightUpdater::ProcessFile] resp.size() = %ld but NExpectedWeights = %ld\n", resp.size(), NExpectedWeights);
+        printf("[WeightUpdater::ProcessFile] resp.size() = %zu but NExpectedWeights = %u\n", resp.size(), NExpectedWeights);
         abort();
       }
 
@@ -232,7 +232,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
         systtools::SystParamHeader const &sph = fRH->GetHeader( pid );
         if(DoDebug){
           printf("[WeightUpdater::ProcessFile]     - Param name = %s\n", sph.prettyName.c_str());
-          printf("[WeightUpdater::ProcessFile]       - ParamID = %ld\n", pid);
+          printf("[WeightUpdater::ProcessFile]       - ParamID = %u\n", pid);
         }
         if(sph.isResponselessParam){
           if(DoDebug){
@@ -345,7 +345,7 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
     // Copying from input SRGlobal
     printf("[WeightUpdater::CreateGlobalTree] @@ Copying input SRGlobal\n");
 
-    printf("[WeightUpdater::CreateGlobalTree] - Number of Parameter sets = %d\n", input_srglobal->wgts.params.size());
+    printf("[WeightUpdater::CreateGlobalTree] - Number of Parameter sets = %zu\n", input_srglobal->wgts.params.size());
     for(unsigned int i = 0; i < input_srglobal->wgts.params.size(); ++i){
       const caf::SRSystParamHeader& pset = input_srglobal->wgts.params[i];
 
