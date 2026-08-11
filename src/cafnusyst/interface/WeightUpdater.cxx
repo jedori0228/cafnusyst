@@ -154,7 +154,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
     const size_t N_MC = srproxy->mc.nu.size();
     const double pct = 100.0 * (cafev_it + 1) / ThisNCAFEvents;
-    printf("[WeightUpdater::ProcessFile] CAF entry %zu/%zu (\"%.1f%%\"): N_nu = %zu\n",
+    printf("[WeightUpdater::ProcessFile] CAF entry %zu/%zu (%.2f%%): N_nu = %zu\n",
            cafev_it + 1, ThisNCAFEvents, pct, N_MC);
     TotalNuThisFile += N_MC;
 
