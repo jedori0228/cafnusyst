@@ -153,8 +153,9 @@ void WeightUpdater::ProcessFile(std::string inputfile){
     //===========================
 
     const size_t N_MC = srproxy->mc.nu.size();
-    printf("[WeightUpdater::ProcessFile] * CAF entry %ld/%ld (spill): N(SRTrueInteraction) = %ld\n",
-           cafev_it + 1, ThisNCAFEvents, N_MC);
+    const double pct = 100.0 * (cafev_it + 1) / ThisNCAFEvents;
+    printf("[WeightUpdater::ProcessFile] CAF entry %zu/%zu (\"%.1f%%\"): N_nu = %zu\n",
+           cafev_it + 1, ThisNCAFEvents, pct, N_MC);
     TotalNuThisFile += N_MC;
 
     // In weights-only mode, emit a slim record with only syst_dials populated. 
