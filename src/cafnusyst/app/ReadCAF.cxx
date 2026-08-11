@@ -7,8 +7,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-// fhiclcpp
-#include "fhiclcpp/ParameterSet.h"
 // systematicstools
 #include "systematicstools/interface/ISystProviderTool.hh"
 #include "systematicstools/interface/SystMetaData.hh"
@@ -40,8 +38,6 @@ template class caf::Proxy<caf::StandardRecord>;
 namespace cliopts {
   std::string input_filename = "";
   std::string output_filename = "";
-  std::string envvar = "FHICL_FILE_PATH";
-  std::string fhicl_key = "generated_systematic_provider_configuration";
   size_t NMax = std::numeric_limits<size_t>::max();
   size_t NSkip = 0;
   bool DoDebug = false;
@@ -50,11 +46,7 @@ namespace cliopts {
 void SayUsage(char const *argv[]) {
   std::cout << "[USAGE]: " << argv[0] << "\n" << std::endl;
   std::cout << "\t-?|--help          : Show this message.\n"
-               "\t-c <config.fcl>    : fhicl file to read.\n"
-               "\t-k <list key>      : fhicl key to look for parameter headers,\n"
-               "\t                     "
-               "\"generated_systematic_provider_configuration\"\n"
-               "\t                     by default.\n"
+               "\t-c <config.yaml>   : yaml file to read.\n"
                "\t-i <inputlist.txt> : List of input CAF files\n"
                "\t-N <NMax>        : Maximum number of events to process.\n"
                "\t-s <NSkip>       : Number of events to skip.\n"
@@ -70,8 +62,6 @@ void HandleOpts(int argc, char const *argv[]) {
         (std::string(argv[opt]) == "--help")) {
       SayUsage(argv);
       exit(0);
-    } else if (std::string(argv[opt]) == "-k") {
-      cliopts::fhicl_key = argv[++opt];
     } else if (std::string(argv[opt]) == "-i") {
       cliopts::input_filename = argv[++opt];
     } else if (std::string(argv[opt]) == "-N") {

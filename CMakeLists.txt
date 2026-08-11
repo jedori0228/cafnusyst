@@ -50,15 +50,8 @@ if(NOT TARGET GENIE3::All)
   message(FATAL_ERROR "Expected find_package(GENIE3 REQUIRED) call to set up target GENIE3::All.")
 endif()
 
-## Check if we have fhiclcpp from ups
-find_package(fhiclcpp QUIET)
-if(NOT fhiclcpp_FOUND)
-  find_package(fhiclcppstandalone)
-endif()
-
 ###### Compiler set up
 add_library(cafnusyst_dependencies INTERFACE)
-target_link_libraries(cafnusyst_dependencies INTERFACE fhiclcpp::fhiclcpp)
 target_include_directories(cafnusyst_dependencies INTERFACE 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:include> )
@@ -75,8 +68,6 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 
 add_subdirectory(src/cafnusyst)
-
-add_subdirectory(fcls)
 
 install(EXPORT cafnusyst-targets
         NAMESPACE cafnusyst::

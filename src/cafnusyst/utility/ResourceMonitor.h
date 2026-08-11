@@ -9,7 +9,7 @@
 // Usage for a one-shot step:
 //   {
 //     cafnusyst::ScopedResourceReport r("Configuring response_helper", doMonitor);
-//     wu.SetResponseHelper(fclname);
+//     wu.SetResponseHelper(yamlname);
 //   } // prints elapsed wall/cpu time and peak RSS on scope exit (if enabled)
 //
 // Usage for a step that repeats many times (e.g. once per SRTrueInteraction),

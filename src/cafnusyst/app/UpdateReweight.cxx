@@ -7,8 +7,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-// fhiclcpp
-#include "fhiclcpp/ParameterSet.h"
 // systematicstools
 #include "systematicstools/interface/ISystProviderTool.hh"
 #include "systematicstools/interface/SystMetaData.hh"
@@ -38,11 +36,9 @@
 template class caf::Proxy<caf::StandardRecord>;
 
 namespace cliopts {
-  std::string fclname = "";
+  std::string yamlname = "";
   std::string input_filename = "";
   std::string output_filename = "";
-  std::string envvar = "FHICL_FILE_PATH";
-  std::string fhicl_key = "generated_systematic_provider_configuration";
   size_t NMax = std::numeric_limits<size_t>::max();
   bool NMaxSet = false;
   size_t NSkip = 0;
@@ -55,11 +51,7 @@ namespace cliopts {
 void SayUsage(char const *argv[]) {
   std::cout << "[USAGE]: " << argv[0] << "\n" << std::endl;
   std::cout << "\t-?|--help          : Show this message.\n"
-               "\t-c <config.fcl>    : fhicl file to read.\n"
-               "\t-k <list key>      : fhicl key to look for parameter headers,\n"
-               "\t                     "
-               "\"generated_systematic_provider_configuration\"\n"
-               "\t                     by default.\n"
+               "\t-c <config.yaml>   : yaml file to read.\n"
                "\t-i <inputlist.txt> : List of input CAF files\n"
                "\t-N <NMax>        : Maximum number of events to process.\n"
                "\t-s <NSkip>       : Number of events to skip.\n"
@@ -85,9 +77,7 @@ void HandleOpts(int argc, char const *argv[]) {
       SayUsage(argv);
       exit(0);
     } else if (std::string(argv[opt]) == "-c") {
-      cliopts::fclname = argv[++opt];
-    } else if (std::string(argv[opt]) == "-k") {
-      cliopts::fhicl_key = argv[++opt];
+      cliopts::yamlname = argv[++opt];
     } else if (std::string(argv[opt]) == "-i") {
       cliopts::input_filename = argv[++opt];
     } else if (std::string(argv[opt]) == "-N") {
@@ -122,7 +112,7 @@ int main(int argc, char const *argv[]) {
   genie::Messenger::Instance()->SetPrioritiesFromXmlFile("Messenger_laconic.xml"); // quiet mode
 
   HandleOpts(argc, argv);
-  if (!cliopts::fclname.size()) {
+  if (!cliopts::yamlname.size()) {
     std::cout << "[ERROR]: Expected to be passed a -c option." << std::endl;
     SayUsage(argv);
     return 1;
@@ -157,7 +147,7 @@ int main(int argc, char const *argv[]) {
   if(cliopts::DoMonitor) wu.DoMonitor = true;
   wu.SetOutputFileName(cliopts::output_filename);
   wu.SetNMaxCAFEventsToProcess(cliopts::NMax);
-  wu.SetResponseHelper(cliopts::fclname);
+  wu.SetResponseHelper(cliopts::yamlname);
 
   // Loop over input files
   while (std::getline(inputFile, filePath)) {
