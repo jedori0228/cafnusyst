@@ -230,8 +230,6 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       if(!fWeightsOnly){
         outNu.genieIdx = GlobalGENIEEventCounter;
       }
-      // Start from an empty syst_dials so weights from a previous spill do not linger.
-      outNu.syst_dials.clear();
       for(const auto& v: resp){
         const systtools::paramId_t& pid = v.pid;
         const double& CVw = v.CV_response;
