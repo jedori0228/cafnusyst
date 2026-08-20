@@ -59,17 +59,37 @@ public:
   void ProcessFile(std::string inputfile);
   size_t NProcessedFiles;
 
-  TFile *fOutputFile;
-  TTree *fOutputCAFTree;
-  TTree *fOutputGENIETree;
-  TTree *fOutputGlobalTree;
+  // FlatCAF output. Always written.
+  TFile *fOutputFlatFile;
+  TTree *fOutputFlatCAFTree;
+  TTree *fOutputFlatGENIETree;
+  TTree *fOutputFlatGlobalTree;
   caf::FlatStandardRecord* fOutputFlatSR;
+
+  // Single GENIE ntuple buffer shared by both the flat and nested GENIE
+  // trees: filled once per neutrino in ProcessFile(), then Fill()ed into
+  // whichever of fOutputFlatGENIETree/fOutputNestedGENIETree are active.
   genie::NtpMCEventRecord *fOutputGENIENtp;
 
-  void SetOutputFileName(std::string FileName);
-  void CreateMetadataTree(); // TODO
+  // Sets up both outputs from a single base name (see SetOutputFileName()
+  // for the naming scheme). Set fMakeNestedCAF before calling this if the
+  // nested-CAF output is also wanted.
+  void SetOutputFileName(std::string FileNameBase);
+  void CreateMetadataTree(TFile* f); // TODO
   void CreateGlobalTree(caf::SRGlobal* input_srglobal);
   unsigned int NExpectedWeights;
+
+  // Optional updated nested-CAF output, written alongside the FlatCAF in the
+  // same ProcessFile() pass (no re-evaluation of reweights). Off by default;
+  // set fMakeNestedCAF = true before calling SetOutputFileName() to enable
+  // it. Honors fWeightsOnly the same way the FlatCAF output does.
+  bool fMakeNestedCAF;
+  void CreateNestedOutput(std::string FileName);
+  TFile *fOutputNestedFile;
+  TTree *fOutputNestedCAFTree;
+  TTree *fOutputNestedGENIETree;
+  TTree *fOutputNestedGlobalTree;
+  caf::StandardRecord *fOutputNestedSR;
 
   void SetOutputPOTHistName(std::string name);
   void SetOutputLivetimeHistName(std::string name);

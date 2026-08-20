@@ -29,12 +29,19 @@ WeightUpdater::WeightUpdater(
   GlobalGENIEEventCounter = 0;
   NProcessedFiles = 0;
 
-  fOutputFile = nullptr;
-  fOutputCAFTree = nullptr;
-  fOutputGENIETree = nullptr;
-  fOutputGlobalTree = nullptr;
+  fOutputFlatFile = nullptr;
+  fOutputFlatCAFTree = nullptr;
+  fOutputFlatGENIETree = nullptr;
+  fOutputFlatGlobalTree = nullptr;
   fOutputFlatSR = nullptr;
   fOutputGENIENtp = nullptr;
+
+  fMakeNestedCAF = false;
+  fOutputNestedFile = nullptr;
+  fOutputNestedCAFTree = nullptr;
+  fOutputNestedGENIETree = nullptr;
+  fOutputNestedGlobalTree = nullptr;
+  fOutputNestedSR = nullptr;
 
   NExpectedWeights = 0;
 
@@ -109,7 +116,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
   }
 
   // - Check Global
-  if(!fOutputGlobalTree){
+  if(!fOutputFlatGlobalTree){
 
     caf::SRGlobal* srglobal = nullptr;
 
@@ -258,7 +265,8 @@ void WeightUpdater::ProcessFile(std::string inputfile){
       // Also fill output GENIE tree (not emitted in weights-only mode)
       if(!fWeightsOnly){
         fOutputGENIENtp->Fill(GlobalGENIEEventCounter, &GenieGHep);
-        fOutputGENIETree->Fill();
+        fOutputFlatGENIETree->Fill();
+        if(fOutputNestedGENIETree) fOutputNestedGENIETree->Fill();
         GlobalGENIEEventCounter++;
       }
 
@@ -275,7 +283,12 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
     fOutputFlatSR->Clear();
     fOutputFlatSR->Fill(fWeightsOnly ? outSR : *fSR);
-    fOutputCAFTree->Fill();
+    fOutputFlatCAFTree->Fill();
+
+    if(fOutputNestedCAFTree){
+      *fOutputNestedSR = fWeightsOnly ? outSR : *fSR;
+      fOutputNestedCAFTree->Fill();
+    }
 
     NProcessedCAFEvents++;
 
@@ -289,30 +302,74 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
 }
 
-void WeightUpdater::SetOutputFileName(std::string FileName){
+void WeightUpdater::SetOutputFileName(std::string FileNameBase){
 
-  fOutputFile = new TFile(FileName.c_str(), "RECREATE");
+  // -o is expected as a base name, without a trailing ".root": the FlatCAF
+  // and (optionally) nested CAF each get their own derived file name below.
+  // Tolerate a trailing ".root" anyway and just strip it, so a full file
+  // name passed by habit does not silently produce a "*.root.cafnusyst..."
+  // file.
+  std::string base = FileNameBase;
+  const std::string root_suffix = ".root";
+  if(base.size() >= root_suffix.size() &&
+     base.compare(base.size() - root_suffix.size(), root_suffix.size(), root_suffix) == 0){
+    std::string stripped = base.substr(0, base.size() - root_suffix.size());
+    printf("[WeightUpdater::SetOutputFileName] -o is expected without a trailing \".root\"; "
+           "stripping it: \"%s\" -> \"%s\"\n", base.c_str(), stripped.c_str());
+    base = stripped;
+  }
 
-  fOutputCAFTree = new TTree(fCAFTreeName.c_str(), fCAFTreeName.c_str());
-  fOutputFlatSR = new caf::FlatStandardRecord(fOutputCAFTree, fSRName.c_str(), "", 0);
+  std::string flatFileName = base + ".cafnusyst.flat.root";
+  printf("[WeightUpdater::SetOutputFileName] Writing FlatCAF to %s\n", flatFileName.c_str());
+
+  fOutputFlatFile = new TFile(flatFileName.c_str(), "RECREATE");
+
+  fOutputFlatCAFTree = new TTree(fCAFTreeName.c_str(), fCAFTreeName.c_str());
+  fOutputFlatSR = new caf::FlatStandardRecord(fOutputFlatCAFTree, fSRName.c_str(), "", 0);
 
   // The GENIE tree only exists to feed nusystematics on the input side; a
   // weights-only friend file does not carry it.
   if(!fWeightsOnly){
-    fOutputGENIETree = new TTree(fGENIETreeName.c_str(), fGENIETreeName.c_str());
-    fOutputGENIETree->Branch(fGENIERecName.c_str(), &fOutputGENIENtp);
+    fOutputFlatGENIETree = new TTree(fGENIETreeName.c_str(), fGENIETreeName.c_str());
+    fOutputFlatGENIETree->Branch(fGENIERecName.c_str(), &fOutputGENIENtp);
   }
 
-  CreateMetadataTree();
+  CreateMetadataTree(fOutputFlatFile);
+
+  if(fMakeNestedCAF){
+    std::string nestedFileName = base + ".cafnusyst.nested.root";
+    printf("[WeightUpdater::SetOutputFileName] Writing nested CAF to %s\n", nestedFileName.c_str());
+    CreateNestedOutput(nestedFileName);
+  }
+
+}
+
+void WeightUpdater::CreateNestedOutput(std::string FileName){
+
+  fOutputNestedFile = new TFile(FileName.c_str(), "RECREATE");
+  fOutputNestedFile->cd();
+
+  fOutputNestedCAFTree = new TTree(fCAFTreeName.c_str(), fCAFTreeName.c_str());
+  fOutputNestedSR = new caf::StandardRecord();
+  fOutputNestedCAFTree->Branch(fSRName.c_str(), &fOutputNestedSR);
+
+  // Same GENIE ntuple content as the FlatCAF's genieEvt tree; not written in
+  // weights-only mode, same as the FlatCAF output.
+  if(!fWeightsOnly){
+    fOutputNestedGENIETree = new TTree(fGENIETreeName.c_str(), fGENIETreeName.c_str());
+    fOutputNestedGENIETree->Branch(fGENIERecName.c_str(), &fOutputGENIENtp);
+  }
+
+  CreateMetadataTree(fOutputNestedFile);
 
 }
 
 // TODO
-void WeightUpdater::CreateMetadataTree(){
+void WeightUpdater::CreateMetadataTree(TFile* f){
 
-  fOutputFile->cd();
-  fOutputFile->mkdir("metadata");
-  fOutputFile->cd("metadata");
+  f->cd();
+  f->mkdir("metadata");
+  f->cd("metadata");
 
   TTree *fMetadataTree = new TTree("metatree", "metatree");
 
@@ -324,7 +381,7 @@ void WeightUpdater::CreateMetadataTree(){
 
   fMetadataTree->Write();
 
-  fOutputFile->cd();
+  f->cd();
 
 }
 
@@ -337,10 +394,18 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
     abort();
   }
 
-  fOutputFile->cd();
-  fOutputGlobalTree = new TTree(fGlobalTreeName.c_str(), fGlobalTreeName.c_str());
+  fOutputFlatFile->cd();
+  fOutputFlatGlobalTree = new TTree(fGlobalTreeName.c_str(), fGlobalTreeName.c_str());
   caf::SRGlobal srglobal = caf::SRGlobal();
-  fOutputGlobalTree->Branch(fSRGlobalName.c_str(), &srglobal);
+  fOutputFlatGlobalTree->Branch(fSRGlobalName.c_str(), &srglobal);
+
+  // Same SRGlobal content mirrored into the nested-CAF output, if requested.
+  if(fOutputNestedFile){
+    fOutputNestedFile->cd();
+    fOutputNestedGlobalTree = new TTree(fGlobalTreeName.c_str(), fGlobalTreeName.c_str());
+    fOutputNestedGlobalTree->Branch(fSRGlobalName.c_str(), &srglobal);
+    fOutputFlatFile->cd();
+  }
 
   if(input_srglobal){
     // Copying from input SRGlobal
@@ -429,7 +494,8 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
 
   } // END Loop pid
 
-  fOutputGlobalTree->Fill();
+  fOutputFlatGlobalTree->Fill();
+  if(fOutputNestedGlobalTree) fOutputNestedGlobalTree->Fill();
 
 }
 
@@ -439,25 +505,46 @@ void WeightUpdater::Save(){
 
   fReweightResourceAcc.Report();
 
-  fOutputFile->cd();
+  fOutputFlatFile->cd();
 
-  // Provenance: record the output StandardRecord branch name and the write mode 
+  // Provenance: record the output StandardRecord branch name and the write mode
   // so a reader can self-configure (see README for the friend-tree read recipes)
   // instead of relying on the user to remember how it was written.
   TNamed("cafnusyst_srbranch", fSRName.c_str()).Write();
   TNamed("cafnusyst_mode", fWeightsOnly ? "weights-only" : "full").Write();
 
   if(fBaseDirName!=""){
-    fOutputFile->mkdir( fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
+    fOutputFlatFile->mkdir( fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
   }
-  TDirectory *OutTDir = fBaseDirName=="" ? fOutputFile : (TDirectory *)fOutputFile->Get(fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
+  TDirectory *OutTDir = fBaseDirName=="" ? fOutputFlatFile : (TDirectory *)fOutputFlatFile->Get(fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
 
-  fOutputGlobalTree->SetDirectory(OutTDir);
-  fOutputCAFTree->SetDirectory(OutTDir);
-  if(fOutputGENIETree) fOutputGENIETree->SetDirectory(OutTDir);
+  fOutputFlatGlobalTree->SetDirectory(OutTDir);
+  fOutputFlatCAFTree->SetDirectory(OutTDir);
+  if(fOutputFlatGENIETree) fOutputFlatGENIETree->SetDirectory(OutTDir);
 
-  fOutputFile->Write();
-  fOutputFile->Close();
+  fOutputFlatFile->Write();
+  fOutputFlatFile->Close();
+
+  if(fOutputNestedFile){
+
+    fOutputNestedFile->cd();
+
+    TNamed("cafnusyst_srbranch", fSRName.c_str()).Write();
+    TNamed("cafnusyst_mode", fWeightsOnly ? "weights-only" : "full").Write();
+
+    if(fBaseDirName!=""){
+      fOutputNestedFile->mkdir( fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
+    }
+    TDirectory *OutNestedTDir = fBaseDirName=="" ? fOutputNestedFile : (TDirectory *)fOutputNestedFile->Get(fBaseDirName.substr(0, fBaseDirName.size() - 1).c_str());
+
+    fOutputNestedGlobalTree->SetDirectory(OutNestedTDir);
+    fOutputNestedCAFTree->SetDirectory(OutNestedTDir);
+    if(fOutputNestedGENIETree) fOutputNestedGENIETree->SetDirectory(OutNestedTDir);
+
+    fOutputNestedFile->Write();
+    fOutputNestedFile->Close();
+
+  }
 
   printf("[WeightUpdater::Save] Done\n");
 

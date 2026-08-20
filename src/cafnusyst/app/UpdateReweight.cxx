@@ -47,6 +47,7 @@ namespace cliopts {
   bool DoDebug = false;
   bool DoMonitor = false;
   bool WeightsOnly = false;
+  bool MakeNested = false;
   std::string sr_branch = "rec";
 } // namespace cliopts
 
@@ -57,7 +58,16 @@ void SayUsage(char const *argv[]) {
                "\t-i <inputlist.txt> : List of input CAF files\n"
                "\t-N <NMax>        : Maximum number of events to process.\n"
                "\t-s <NSkip>       : Number of events to skip.\n"
-               "\t-o <out.root>    : File to write validation canvases to.\n"
+               "\t-o <outbase>     : Base name for output file(s), given without a\n"
+               "\t                   trailing \".root\" (one is stripped off with a\n"
+               "\t                   warning if given anyway). The FlatCAF is written to\n"
+               "\t                   <outbase>.cafnusyst.flat.root, and, with\n"
+               "\t                   --make_nested, the nested CAF to\n"
+               "\t                   <outbase>.cafnusyst.nested.root.\n"
+               "\t--make_nested    : Also write an updated nested CAF (same schema as\n"
+               "\t                   the input, not flattened), in the same pass over\n"
+               "\t                   the input as the FlatCAF. Off by default. Honors\n"
+               "\t                   --weights-only the same way the FlatCAF does.\n"
                "\t--weights-only   : Emit a slim record with only the weights populated \n"
                "\t                   (for use as a friend of the input CAF).\n"
                "\t                   Incompatible with -N.\n"
@@ -89,6 +99,9 @@ void HandleOpts(int argc, char const *argv[]) {
       cliopts::NSkip = systtools::str2T<size_t>(argv[++opt]);
     } else if (std::string(argv[opt]) == "-o") {
       cliopts::output_filename = argv[++opt];
+    } else if (std::string(argv[opt]) == "--make_nested") {
+      cliopts::MakeNested = true;
+      ++opt;
     } else if (std::string(argv[opt]) == "--weights-only") {
       cliopts::WeightsOnly = true;
       ++opt;
@@ -149,6 +162,7 @@ int main(int argc, char const *argv[]) {
   wu.fWeightsOnly = cliopts::WeightsOnly;
   if(cliopts::DoDebug) wu.DoDebug = true;
   if(cliopts::DoMonitor) wu.DoMonitor = true;
+  wu.fMakeNestedCAF = cliopts::MakeNested;
   wu.SetOutputFileName(cliopts::output_filename);
   wu.SetNMaxCAFEventsToProcess(cliopts::NMax);
 

@@ -76,7 +76,28 @@ path/to/your/input/caf.root
 
 Then run `UpdateReweight` using following command:
 ```
-UpdateReweight -c example/zexpansion_weighter.ParameterHeader.fcl -i input_cafs.txt -o output_flat.caf.root
+UpdateReweight -c example/zexpansion_weighter.ParameterHeader.fcl -i input_cafs.txt -o output
+```
+
+## Output file naming
+
+`-o` takes a *base name*, given without a trailing `.root` (one is stripped
+off with a warning if you pass it anyway). The FlatCAF is always written to
+`<base>.cafnusyst.flat.root`; with `--make_nested` (see below) the nested CAF
+is additionally written to `<base>.cafnusyst.nested.root`.
+
+## Nested-CAF output
+
+By default `UpdateReweight` only writes the FlatCAF. Pass `--make_nested` to
+also write an updated *nested* CAF — same schema as the input (a plain
+`StandardRecord` object branch, not flattened) — in the same pass over the
+input, so reweights are evaluated once and reused for both outputs.
+`globalTree` and `genieEvt` are duplicated into this file the same way they
+are in the FlatCAF output, and it honors `--weights-only` identically (a
+slim, entry-aligned friend tree with only `mc.nu[i].syst_dials` populated).
+
+```
+UpdateReweight -c weighter.fcl -i input_cafs.txt -o output --make_nested
 ```
 
 ## Weights-only (friend-tree) output
@@ -91,7 +112,7 @@ it can be used as a friend. The GENIE tree is not written in this mode; the
 `globalTree` still is, so the weight indices remain interpretable.
 
 ```
-UpdateReweight -c weighter.fcl -i input_cafs.txt -o weights_friend.root --weights-only
+UpdateReweight -c weighter.fcl -i input_cafs.txt -o weights_friend --weights-only
 ```
 
 An event cap (`-N`) is rejected in this mode, since a truncated output cannot
