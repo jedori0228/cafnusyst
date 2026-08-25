@@ -165,7 +165,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
            cafev_it + 1, ThisNCAFEvents, pct, N_MC);
     TotalNuThisFile += N_MC;
 
-    // In weights-only mode, emit a slim record with only syst_dials populated. 
+    // In weights-only mode, emit a slim record with only xsec_systs populated. 
     // Size mc.nu to the input so index alignment is preserved.
     caf::StandardRecord outSR;
     if(fWeightsOnly){
@@ -219,7 +219,7 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
       if(DoDebug){
         printf("[WeightUpdater::ProcessFile]     - => done.\n");
-        printf("[WeightUpdater::ProcessFile]     - Current number size of syst_dials = %ld\n", outNu.syst_dials.size());
+        printf("[WeightUpdater::ProcessFile]     - Current number size of xsec_systs = %ld\n", outNu.xsec_systs.size());
         printf("[WeightUpdater::ProcessFile]     - Now updating weights\n");
       }
 
@@ -249,12 +249,12 @@ void WeightUpdater::ProcessFile(std::string inputfile){
 
         // Upated record (caf::StandardRecord),
         // convert this into FlatRecord using flat::Flat::Fill(const T& x)
-        outNu.syst_dials.emplace_back();
+        outNu.xsec_systs.emplace_back();
         for(const auto& w: ws){
           if(DoDebug){
             printf("[WeightUpdater::ProcessFile]       - w =  = %f\n", w);
           }
-          outNu.syst_dials.back().weights.push_back(w);
+          outNu.xsec_systs.back().weights.push_back(w);
         }
 
       } // END resp loop
@@ -409,11 +409,11 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
     // Copying from input SRGlobal
     printf("[WeightUpdater::CreateGlobalTree] @@ Copying input SRGlobal\n");
 
-    printf("[WeightUpdater::CreateGlobalTree] - Number of Parameter sets = %zu\n", input_srglobal->wgts.params.size());
-    for(unsigned int i = 0; i < input_srglobal->wgts.params.size(); ++i){
-      const caf::SRSystParamHeader& pset = input_srglobal->wgts.params[i];
+    printf("[WeightUpdater::CreateGlobalTree] - Number of Parameter sets = %zu\n", input_srglobal->wgts.xsec_params.size());
+    for(unsigned int i = 0; i < input_srglobal->wgts.xsec_params.size(); ++i){
+      const caf::SRSystParamHeader& pset = input_srglobal->wgts.xsec_params[i];
 
-      srglobal.wgts.params.push_back( pset );
+      srglobal.wgts.xsec_params.push_back( pset );
     }
 
   }
@@ -446,7 +446,7 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
       continue;
     }
 
-    srglobal.wgts.params.emplace_back();
+    srglobal.wgts.xsec_params.emplace_back();
 
     NExpectedWeights++;
 
@@ -463,9 +463,9 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
     }
 
     // Name
-    srglobal.wgts.params.back().name = fRH->GetSystProvider()[matched_idx_sp]->GetFullyQualifiedName()+"_"+sph.prettyName;
+    srglobal.wgts.xsec_params.back().name = fRH->GetSystProvider()[matched_idx_sp]->GetFullyQualifiedName()+"_"+sph.prettyName;
 
-    printf("[WeightUpdater::CreateGlobalTree] Adding %s to globalTree\n", srglobal.wgts.params.back().name.c_str());
+    printf("[WeightUpdater::CreateGlobalTree] Adding %s to globalTree\n", srglobal.wgts.xsec_params.back().name.c_str());
 
     // Weight map entry (e.g., dep dials)
     auto it = map_resp_to_respless.find( sph.systParamId );
@@ -482,11 +482,11 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
     else{
       // single dial
 
-      srglobal.wgts.params.back().id = int(pid);
+      srglobal.wgts.xsec_params.back().id = int(pid);
 
       std::vector<double> paramVars = sph.isCorrection ? std::vector<double>(1, sph.centralParamValue) : sph.paramVariations;
-      srglobal.wgts.params.back().vals.clear();
-      for(const auto& v: paramVars) srglobal.wgts.params.back().vals.push_back(v);
+      srglobal.wgts.xsec_params.back().vals.clear();
+      for(const auto& v: paramVars) srglobal.wgts.xsec_params.back().vals.push_back(v);
 
     }
 

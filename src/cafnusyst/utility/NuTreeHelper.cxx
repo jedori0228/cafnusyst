@@ -46,7 +46,7 @@ void NuTreeHelper::FillVariable(const caf::Proxy<caf::SRTrueInteraction>& nu){
 
   Enu = nu.E;
 
-  for(const auto& syst_dial: nu.syst_dials){
+  for(const auto& syst_dial: nu.xsec_systs){
     rws.push_back({});
     for(const auto& rw: syst_dial.weights){
       rws.back().push_back(rw);
