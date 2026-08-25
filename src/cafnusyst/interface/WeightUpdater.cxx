@@ -416,6 +416,13 @@ void WeightUpdater::CreateGlobalTree(caf::SRGlobal* input_srglobal){
       srglobal.wgts.xsec_params.push_back( pset );
     }
 
+    // cafnusyst only ever adds GENIE cross-section systematics (above/below);
+    // any flux systematics already in the input's global tree are untouched
+    // by this tool and must be copied through as-is, or they'd silently
+    // vanish from the output.
+    printf("[WeightUpdater::CreateGlobalTree] - Number of flux Parameter sets = %zu\n", input_srglobal->wgts.flux_params.size());
+    srglobal.wgts.flux_params = input_srglobal->wgts.flux_params;
+
   }
 
   // Now adding new weights
