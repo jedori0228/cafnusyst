@@ -25,6 +25,15 @@ PUBLIC
   ${ANAOBJ_LIBS}
   cafnusyst::commondeps
   cafnusyst::utility
+PRIVATE
+  # See the ANAOBJ_PROXY_LIB/ANAOBJ_FLAT_LIB comment in the top-level
+  # CMakeLists.txt: WeightUpdater.cxx is the only place that references
+  # caf::FlatStandardRecord (flat::Flat<caf::StandardRecord>) directly, so
+  # this static archive belongs here -- PRIVATE so it isn't also embedded
+  # into whatever links cafnusyst::interface (the app executables), which
+  # would cause duplicate ROOT dictionary registration and a heap-corruption
+  # crash at exit.
+  ${ANAOBJ_FLAT_LIB}
 )
 target_include_directories(cafnusyst_interface
   PRIVATE

@@ -32,18 +32,62 @@ set(ANAOBJ_LIBS
     duneanaobj::StandardRecord_dict
 )
 
-# StandardRecordProxy / StandardRecordFlat are not exported as targets by every duneanaobj install (due to errors in the build scripts).
-# Link them when available; otherwise the headers and the explicit template instantiations in the sources 
-# are expected to supply the needed symbols.
-foreach(_opt_anaobj_target
-    duneanaobj::StandardRecordProxy
-    duneanaobj::StandardRecordFlat)
-  if(TARGET ${_opt_anaobj_target})
-    list(APPEND ANAOBJ_LIBS ${_opt_anaobj_target})
+# StandardRecordProxy / StandardRecordFlat are not exported as CMake targets by
+# every duneanaobj install: a default duneanaobj build (SKIP_CET=OFF, the
+# default) compiles these two libraries via cetmodules' cet_make_library(),
+# whose export doesn't land in the duneanaobjTargets export set that
+# duneanaobj::StandardRecordProxy/StandardRecordFlat come from -- only a
+# SKIP_CET=ON duneanaobj build exports them that way. Either way the compiled
+# library genuinely exists on disk (Instantiations.cxx / SRProxy.cxx /
+# FlatRecord.cxx are only ever compiled into these libraries), so when the
+# target isn't exported, fall back to locating the library file directly by
+# name, using duneanaobj_DIR (set by the find_package(duneanaobj) above) as a
+# search hint. This matters because some of the missing symbols (e.g.
+# caf::GetCAFType) are plain compiled functions, not templates -- headers
+# alone can't supply them.
+#
+# Kept out of ANAOBJ_LIBS deliberately: on a default duneanaobj build these
+# resolve to *static* archives (.a). A static archive only contributes the
+# object files needed to resolve symbols already referenced by whatever it's
+# linked into -- and it gets a private copy of that object code embedded
+# there. Since that object code includes ROOT dictionary-registration statics
+# (TGenericClassInfo, one per caf::Proxy<T> specialization), multiple copies
+# loaded into the same process register/unregister the same TClass entries
+# independently -- corrupting ROOT's bookkeeping and crashing with heap
+# corruption (malloc_consolidate) when the second copy's static destructors
+# run at exit. So each archive must be linked into exactly the one library
+# that actually references its symbols directly (StandardRecordProxy into
+# cafnusyst_utility, via NuTreeHelper's caf::Proxy<T> use; StandardRecordFlat
+# into cafnusyst_interface, via WeightUpdater's caf::FlatStandardRecord use --
+# see each target's own CMakeLists.txt PRIVATE section), and picked up
+# transitively everywhere else via the existing cafnusyst::utility /
+# cafnusyst::interface dependencies. Linking a given archive into more than
+# one of those two places, or into a library that doesn't itself reference
+# its symbols, either reintroduces the duplicate-registration crash above or
+# silently links in nothing at all (the archive contributes no object files
+# if nothing in that link references them).
+function(cafnusyst_resolve_anaobj_lib _libname _outvar)
+  if(TARGET duneanaobj::${_libname})
+    set(${_outvar} duneanaobj::${_libname} PARENT_SCOPE)
   else()
-    message(STATUS "duneanaobj target ${_opt_anaobj_target} not exported; relying on headers/explicit instantiation")
+    find_library(${_libname}_LIBRARY
+      NAMES ${_libname}
+      HINTS ${duneanaobj_DIR}/../../..
+      PATH_SUFFIXES lib lib64)
+    if(${_libname}_LIBRARY)
+      message(STATUS "duneanaobj target duneanaobj::${_libname} not exported; "
+                      "linking ${${_libname}_LIBRARY} directly")
+      set(${_outvar} ${${_libname}_LIBRARY} PARENT_SCOPE)
+    else()
+      message(STATUS "duneanaobj target/library ${_libname} not found; "
+                      "relying on headers/explicit instantiation")
+      set(${_outvar} "" PARENT_SCOPE)
+    endif()
   endif()
-endforeach()
+endfunction()
+
+cafnusyst_resolve_anaobj_lib(duneanaobj_StandardRecordProxy ANAOBJ_PROXY_LIB)
+cafnusyst_resolve_anaobj_lib(duneanaobj_StandardRecordFlat  ANAOBJ_FLAT_LIB)
 
 find_package(GENIE3 REQUIRED)
 if(NOT TARGET GENIE3::All)
